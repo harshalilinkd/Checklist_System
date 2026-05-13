@@ -1,5 +1,7 @@
 const path = require('path');
-// In production (Render) env vars come from the dashboard; locally we read .env.
+// Env vars: locally we read .env from checklist-migration; in production they
+// come from the host's dashboard (Vercel / Render). dotenv silently no-ops when
+// the file is missing, so the production path needs no special handling.
 require('dotenv').config({ path: path.join(__dirname, '..', 'checklist-migration', '.env') });
 
 const express = require('express');
@@ -59,7 +61,10 @@ app.use('/api/bootstrap', requireAuth, bootstrapRoute.router);
 app.use('/api/master',    requireAuth, masterRoute);
 app.use('/api/tasks',     requireAuth, tasksRoute);
 app.use('/api/doers',     requireAuth, doersRoute);
-app.use('/api/admin',     requireAuth, adminRoute);
+// Admin route is mounted twice: cron sub-paths (e.g. /api/admin/cron/archive)
+// bypass requireAuth because Vercel Cron uses a shared-secret header instead.
+// The route file does its own auth for those sub-paths.
+app.use('/api/admin',     (req, res, next) => req.path.startsWith('/cron/') ? next() : requireAuth(req, res, next), adminRoute);
 app.use('/api/scorecard', requireAuth, scorecardRoute);
 
 // Error handler — runs for any next(err) above.
@@ -70,29 +75,37 @@ app.use((err, req, res, next) => {
   res.status(code).json({ error: err.message || 'Internal error', code });
 });
 
-// Scheduled jobs (timezone-aware: Asia/Kolkata for Indian operations)
-const TZ = process.env.APP_TIMEZONE || 'Asia/Kolkata';
-cron.schedule('0 2 * * *', () => {
-  runArchiveJob().catch(e => console.error('[cron archive]', e));
-}, { timezone: TZ });
-cron.schedule('0 3 * * 0', () => {
-  runExtendJob().catch(e => console.error('[cron extend]', e));
-}, { timezone: TZ });
-console.log(`Cron registered (TZ=${TZ}): archive @ 02:00 daily, extend @ 03:00 Sun`);
+// Detect serverless (Vercel sets process.env.VERCEL=1). In serverless we:
+//   - Don't call app.listen() — the platform owns the lifecycle
+//   - Skip node-cron (each request is a fresh process; use platform cron instead,
+//     e.g. Vercel Cron → /api/admin/run-job)
+//   - Skip SIGTERM handlers (no long-lived process)
+if (!process.env.VERCEL) {
+  const cron = require('node-cron');
+  const TZ = process.env.APP_TIMEZONE || 'Asia/Kolkata';
+  cron.schedule('0 2 * * *', () => {
+    runArchiveJob().catch(e => console.error('[cron archive]', e));
+  }, { timezone: TZ });
+  cron.schedule('0 3 * * 0', () => {
+    runExtendJob().catch(e => console.error('[cron extend]', e));
+  }, { timezone: TZ });
+  console.log(`Cron registered (TZ=${TZ}): archive @ 02:00 daily, extend @ 03:00 Sun`);
 
-const server = app.listen(PORT, () => {
-  console.log(`Listening on :${PORT}`);
-});
-
-// Graceful shutdown: Render sends SIGTERM on deploys; close the server then
-// drain the pg pool so in-flight queries finish cleanly.
-const { pool } = require('./db');
-function shutdown(signal) {
-  console.log(`[${signal}] shutting down`);
-  server.close(() => {
-    pool.end().then(() => process.exit(0)).catch(() => process.exit(1));
+  const server = app.listen(PORT, () => {
+    console.log(`Listening on :${PORT}`);
   });
-  setTimeout(() => process.exit(1), 10000).unref();
+
+  const { pool } = require('./db');
+  function shutdown(signal) {
+    console.log(`[${signal}] shutting down`);
+    server.close(() => {
+      pool.end().then(() => process.exit(0)).catch(() => process.exit(1));
+    });
+    setTimeout(() => process.exit(1), 10000).unref();
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT',  () => shutdown('SIGINT'));
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+
+// Export for serverless platforms (Vercel imports this in api/index.js)
+module.exports = app;

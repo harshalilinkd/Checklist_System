@@ -4,3 +4,4 @@
 .DS_Store
 checklist-migration/data/*.csv
 !checklist-migration/data/.gitkeep
+.vercel

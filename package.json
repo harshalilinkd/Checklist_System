@@ -1,0 +1,24 @@
+{
+  "name": "checklist-sys",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Checklist System — Vercel deployment manifest. Frontend is static (served from /frontend); backend is a serverless function at /api.",
+  "scripts": {
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "node frontend/serve.js",
+    "vercel-build": "echo 'No build step — static frontend + serverless API'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "cors": "^2.8.5",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "lru-cache": "^11.0.1",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

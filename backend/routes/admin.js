@@ -6,6 +6,23 @@ const { runExtendJob } = require('../jobs/extend-occurrences');
 
 const router = express.Router();
 
+// Cron-only endpoints (called by Vercel Cron, no JWT). Authenticated by a
+// shared secret in the Authorization header — set CRON_SECRET in env, then
+// Vercel Cron auto-attaches `Authorization: Bearer ${CRON_SECRET}`.
+router.get('/cron/archive', async (req, res, next) => {
+  if ((req.headers.authorization || '') !== `Bearer ${process.env.CRON_SECRET || ''}` || !process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'Cron auth required', code: 401 });
+  }
+  try { res.json(await runArchiveJob()); } catch (e) { next(e); }
+});
+router.get('/cron/extend', async (req, res, next) => {
+  if ((req.headers.authorization || '') !== `Bearer ${process.env.CRON_SECRET || ''}` || !process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'Cron auth required', code: 401 });
+  }
+  try { res.json(await runExtendJob()); } catch (e) { next(e); }
+});
+
+// All other admin routes require admin JWT
 router.use(requireAdmin);
 
 router.get('/stats', async (req, res, next) => {

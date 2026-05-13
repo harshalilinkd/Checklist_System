@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'No build step'",
+  "outputDirectory": "frontend",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" }
+      ]
+    }
+  ],
+  "crons": [
+    { "path": "/api/admin/cron/archive", "schedule": "0 20 * * *" },
+    { "path": "/api/admin/cron/extend", "schedule": "0 21 * * 6" }
+  ]
+}

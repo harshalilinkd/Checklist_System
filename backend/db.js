@@ -3,12 +3,15 @@ const { Pool, types } = require('pg');
 // Return DATE columns as 'YYYY-MM-DD' strings (no timezone gymnastics)
 types.setTypeParser(1082, v => v);
 
-// Supabase free tier has a 60-conn cap shared across services; keep the pool
-// small so a Render free instance doesn't starve other connections.
+// Pool sizing:
+//   - Local / Render (long-lived): default 5, shares Supabase's 60-conn cap.
+//   - Vercel serverless: each cold start creates a new pool, so cap at 1
+//     to avoid spawning hundreds of connections under load.
+const defaultPoolMax = process.env.VERCEL ? 1 : 5;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: parseInt(process.env.PG_POOL_MAX || '5', 10),
+  max: parseInt(process.env.PG_POOL_MAX || String(defaultPoolMax), 10),
 });
 
 const APP_TZ = process.env.APP_TIMEZONE || 'Asia/Kolkata';
