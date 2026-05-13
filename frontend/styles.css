@@ -1,0 +1,91 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #222; background: #f5f6f8; }
+h1, h2, h3 { margin: 0; }
+
+/* [hidden] must override any display rules below */
+[hidden] { display: none !important; }
+
+.screen { min-height: 100vh; }
+
+/* Login */
+#login-screen { display: flex; align-items: center; justify-content: center; }
+.card { background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); width: 360px; display: flex; flex-direction: column; gap: 16px; }
+.card h1 { font-size: 20px; margin-bottom: 8px; }
+.card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #555; }
+.card input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+.card button { padding: 10px; background: #2563eb; color: #fff; border: 0; border-radius: 4px; font-size: 14px; cursor: pointer; }
+.card button:hover { background: #1d4ed8; }
+.error { color: #b91c1c; font-size: 13px; margin: 0; }
+
+/* App header */
+.app-header { display: flex; align-items: center; gap: 24px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+.app-header h1 { font-size: 16px; }
+.tabs { display: flex; gap: 4px; flex: 1; }
+.tabs button { padding: 6px 14px; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 14px; color: #555; }
+.tabs button:hover { background: #f0f1f3; }
+.tabs button.active { background: #2563eb; color: #fff; }
+.user-box { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #555; }
+.user-box button { padding: 6px 12px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; }
+
+/* Tab content */
+#tab-content { padding: 24px; }
+.filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.filters label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #666; }
+.filters select, .filters input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 140px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 6px; overflow: hidden; }
+th, td { padding: 8px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid #eee; }
+th { background: #f9fafb; font-weight: 600; color: #555; }
+tbody tr:hover { background: #fafbfc; }
+.btn-sm { padding: 4px 10px; font-size: 12px; border: 0; border-radius: 4px; cursor: pointer; background: #10b981; color: #fff; }
+.btn-sm:hover { background: #059669; }
+.btn-sm.danger { background: #ef4444; }
+.btn-sm.danger:hover { background: #dc2626; }
+.btn-sm.neutral { background: #6b7280; }
+
+/* Status badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge.Done { background: #d1fae5; color: #065f46; }
+.badge.Today { background: #dbeafe; color: #1e40af; }
+.badge.Delayed { background: #fee2e2; color: #991b1b; }
+.badge.Scheduled { background: #f3f4f6; color: #374151; }
+.badge.UpcomingFocus { background: #fef3c7; color: #92400e; }
+
+/* Dashboard cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.stat-card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-card .value { font-size: 28px; font-weight: 600; color: #111; margin-top: 4px; }
+
+/* KPI cards (clickable, in Master Checklist) */
+.kpi-cards { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.kpi-card { background: #fff; padding: 12px 18px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); cursor: pointer; min-width: 130px; transition: transform 0.1s, box-shadow 0.1s; border: 2px solid transparent; user-select: none; }
+.kpi-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+.kpi-card.active { border-color: #2563eb; background: #eff6ff; }
+.kpi-card .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
+.kpi-card .value { font-size: 24px; font-weight: 700; margin-top: 4px; line-height: 1; }
+.kpi-Today .value { color: #1e40af; }
+.kpi-Delayed .value { color: #991b1b; }
+.kpi-Done .value { color: #065f46; }
+.kpi-UpcomingFocus .value { color: #92400e; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; padding: 24px; border-radius: 8px; width: 480px; max-width: 90vw; max-height: 90vh; overflow: auto; }
+.modal h2 { margin-bottom: 16px; }
+.modal form { display: flex; flex-direction: column; gap: 12px; }
+.modal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #555; }
+.modal input, .modal select { padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.modal-actions button { padding: 8px 14px; border: 0; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.modal-actions .primary { background: #2563eb; color: #fff; }
+.modal-actions .secondary { background: #e5e7eb; color: #333; }
+
+/* Loading + toast */
+.overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; font-size: 14px; color: #555; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: #111; color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 13px; z-index: 200; }
+.toast.error { background: #b91c1c; }
+
+.muted { color: #888; font-style: italic; }
+.row-actions { display: flex; gap: 6px; }

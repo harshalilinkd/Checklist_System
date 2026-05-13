@@ -1,0 +1,98 @@
+const path = require('path');
+// In production (Render) env vars come from the dashboard; locally we read .env.
+require('dotenv').config({ path: path.join(__dirname, '..', 'checklist-migration', '.env') });
+
+const express = require('express');
+const cors = require('cors');
+const cron = require('node-cron');
+
+const { requireAuth } = require('./auth');
+const bootstrapRoute = require('./routes/bootstrap');
+const masterRoute = require('./routes/master');
+const tasksRoute = require('./routes/tasks');
+const doersRoute = require('./routes/doers');
+const adminRoute = require('./routes/admin');
+const scorecardRoute = require('./routes/scorecard');
+const { runArchiveJob } = require('./jobs/archive');
+const { runExtendJob } = require('./jobs/extend-occurrences');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Disable ETag — every API response should be fresh; 304s break fetch().json()
+app.set('etag', false);
+
+// API responses are always dynamic — never cache.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.set('Pragma', 'no-cache');
+  next();
+});
+
+// CORS: allow comma-separated FRONTEND_URL list in production; '*' otherwise.
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : '*',
+  credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
+
+// Request logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const who = req.user?.email || '-';
+    console.log(`[${req.method}] ${req.originalUrl} ${res.statusCode} ${ms}ms ${who}`);
+  });
+  next();
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
+
+app.get('/api/me', requireAuth, (req, res) => res.json(req.user));
+
+app.use('/api/bootstrap', requireAuth, bootstrapRoute.router);
+app.use('/api/master',    requireAuth, masterRoute);
+app.use('/api/tasks',     requireAuth, tasksRoute);
+app.use('/api/doers',     requireAuth, doersRoute);
+app.use('/api/admin',     requireAuth, adminRoute);
+app.use('/api/scorecard', requireAuth, scorecardRoute);
+
+// Error handler — runs for any next(err) above.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const code = err.status || 500;
+  if (code >= 500) console.error(err.stack || err);
+  res.status(code).json({ error: err.message || 'Internal error', code });
+});
+
+// Scheduled jobs (timezone-aware: Asia/Kolkata for Indian operations)
+const TZ = process.env.APP_TIMEZONE || 'Asia/Kolkata';
+cron.schedule('0 2 * * *', () => {
+  runArchiveJob().catch(e => console.error('[cron archive]', e));
+}, { timezone: TZ });
+cron.schedule('0 3 * * 0', () => {
+  runExtendJob().catch(e => console.error('[cron extend]', e));
+}, { timezone: TZ });
+console.log(`Cron registered (TZ=${TZ}): archive @ 02:00 daily, extend @ 03:00 Sun`);
+
+const server = app.listen(PORT, () => {
+  console.log(`Listening on :${PORT}`);
+});
+
+// Graceful shutdown: Render sends SIGTERM on deploys; close the server then
+// drain the pg pool so in-flight queries finish cleanly.
+const { pool } = require('./db');
+function shutdown(signal) {
+  console.log(`[${signal}] shutting down`);
+  server.close(() => {
+    pool.end().then(() => process.exit(0)).catch(() => process.exit(1));
+  });
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

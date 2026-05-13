@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Checklist System — Operations Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            DEFAULT: '#00535b',
+            50:  '#effafb',
+            100: '#d8f1f3',
+            200: '#b6e3e8',
+            300: '#82d3de',
+            400: '#4eb0bf',
+            500: '#2d8b9c',
+            600: '#286f80',
+            700: '#265a69',
+            800: '#234b58',
+            900: '#0c333a',
+            950: '#00535b',
+          },
+        },
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        boxShadow: {
+          card: '0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06)',
+          lift: '0 10px 30px -10px rgba(15,23,42,0.18), 0 4px 12px -4px rgba(15,23,42,0.08)',
+        },
+        animation: {
+          'fade-up': 'fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
+          'shimmer': 'shimmer 1.4s linear infinite',
+          'pop':     'pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
+        },
+        keyframes: {
+          fadeUp: { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
+          shimmer: { '0%': { backgroundPosition: '-1000px 0' }, '100%': { backgroundPosition: '1000px 0' } },
+          pop: { '0%': { transform: 'scale(0.96)', opacity: 0 }, '100%': { transform: 'scale(1)', opacity: 1 } },
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .num { font-feature-settings: "tnum" 1, "lnum" 1; letter-spacing: -0.02em; }
+
+  /* Stagger reveal */
+  .stagger > * { animation: fadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .stagger > *:nth-child(1) { animation-delay: 0.02s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.07s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.17s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.22s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.27s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.32s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.37s; }
+  @keyframes fadeUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    background: linear-gradient(90deg, rgba(226,232,240,0.55) 25%, rgba(241,245,249,0.9) 50%, rgba(226,232,240,0.55) 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: -800px 0; } 100% { background-position: 800px 0; } }
+
+  /* Donut chart slot — CSS conic-gradient written by JS */
+  .donut {
+    width: 180px; height: 180px; border-radius: 9999px; position: relative;
+    background: conic-gradient(#e2e8f0 0% 100%);
+    transition: background 0.5s ease;
+  }
+  .donut::after {
+    content: ''; position: absolute; inset: 22px; background: #fff; border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px rgba(15,23,42,0.04);
+  }
+
+  /* Sparkline bar */
+  .spark-bar {
+    background: linear-gradient(180deg, #82d3de 0%, #00535b 100%);
+    border-radius: 6px 6px 2px 2px;
+    transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Sticky table head with backdrop blur */
+  .sticky-head th { position: sticky; top: 0; z-index: 5; background: rgba(248,250,252,0.92); backdrop-filter: blur(6px); }
+
+  /* Light scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; }
+
+  /* Tiny grid pattern background for hero */
+  .hero-grid {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(130,211,222,0.18), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(0,83,91,0.10), transparent 45%),
+      linear-gradient(135deg, #f8fafc 0%, #eef2f5 100%);
+  }
+
+  /* Modal backdrop */
+  .modal-bg { background: rgba(15,23,42,0.55); backdrop-filter: blur(6px); }
+
+  /* Tab indicator */
+  .tab-active { color: #00535b; background: linear-gradient(180deg, rgba(130,211,222,0.18), rgba(130,211,222,0.05)); }
+  .tab-active::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px; background: #00535b; border-radius: 2px; }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 9999px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 9999px; background: currentColor; }
+  .badge-Done           { background: #d1fae5; color: #047857; }
+  .badge-Today          { background: #dbeafe; color: #1d4ed8; }
+  .badge-Delayed        { background: #fee2e2; color: #b91c1c; }
+  .badge-Scheduled      { background: #f1f5f9; color: #475569; }
+  .badge-UpcomingFocus  { background: #fef3c7; color: #b45309; }
+
+  /* Toast slide */
+  .toast-in { animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @keyframes toastIn { 0% { opacity: 0; transform: translateX(20px); } 100% { opacity: 1; transform: translateX(0); } }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+
+<body class="text-slate-800 antialiased min-h-screen hero-grid">
+
+<!-- ────────────────────────────────────────────────────────────────────────
+     LOGIN SCREEN
+─────────────────────────────────────────────────────────────────────── -->
+<section id="login-screen" class="min-h-screen flex items-center justify-center px-6">
+  <div class="w-full max-w-md">
+    <div class="mb-8 text-center">
+      <div class="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-brand text-white shadow-lift mb-4">
+        <span class="material-symbols-outlined text-3xl">checklist</span>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Checklist System</h1>
+      <p class="mt-2 text-sm text-slate-500">Operations dashboard for daily, weekly &amp; monthly task tracking</p>
+    </div>
+
+    <form id="login-form" class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-7 shadow-card space-y-5">
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Email</label>
+        <div class="mt-1.5 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand/40 transition">
+          <span class="material-symbols-outlined text-slate-400 text-[20px]">mail</span>
+          <input name="email" type="email" required autocomplete="email" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="you@company.com" />
+        </div>
+      </div>
+
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Password</label>
+        <div class="mt-1.5 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand/40 transition">
+          <span class="material-symbols-outlined text-slate-400 text-[20px]">lock</span>
+          <input name="password" type="password" required autocomplete="current-password" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="••••••••" />
+        </div>
+      </div>
+
+      <button type="submit" class="w-full bg-brand hover:bg-brand-700 active:bg-brand-800 text-white font-semibold py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2">
+        <span>Sign in</span>
+        <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+      </button>
+
+      <p id="login-error" class="text-xs text-red-600 text-center" hidden></p>
+    </form>
+
+    <p class="mt-6 text-center text-[11px] text-slate-400 uppercase tracking-widest">v1.0 · Secured by Supabase Auth</p>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────────────
+     APP SHELL
+─────────────────────────────────────────────────────────────────────── -->
+<div id="app-screen" hidden>
+
+  <!-- Top navigation -->
+  <nav class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/70">
+    <div class="max-w-[1500px] mx-auto px-6 h-16 flex items-center gap-6">
+
+      <!-- Logo -->
+      <a class="flex items-center gap-2.5 select-none">
+        <div class="h-9 w-9 rounded-xl bg-brand text-white grid place-items-center shadow-sm">
+          <span class="material-symbols-outlined text-[20px]">checklist</span>
+        </div>
+        <div class="leading-tight">
+          <div class="text-sm font-bold text-slate-900">Checklist System</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400">Operations</div>
+        </div>
+      </a>
+
+      <!-- Tabs -->
+      <div id="tabs" class="flex items-center gap-1 ml-4">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Right side -->
+      <div class="ml-auto flex items-center gap-2">
+        <button id="sync-btn" class="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-brand hover:bg-brand-50 px-3 py-2 rounded-xl transition">
+          <span class="material-symbols-outlined text-[18px]" id="sync-icon">sync</span>
+          <span>Sync</span>
+        </button>
+
+        <div class="h-7 w-px bg-slate-200 mx-1"></div>
+
+        <div class="flex items-center gap-2.5">
+          <div class="h-8 w-8 rounded-full bg-gradient-to-br from-brand-300 to-brand grid place-items-center text-white text-xs font-semibold" id="user-initials">--</div>
+          <div class="leading-tight hidden sm:block">
+            <div class="text-xs font-semibold text-slate-800" id="user-email">—</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-400" id="user-role">—</div>
+          </div>
+        </div>
+
+        <button id="logout-btn" class="ml-1 h-9 w-9 grid place-items-center rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition" title="Sign out">
+          <span class="material-symbols-outlined text-[18px]">logout</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- View container -->
+  <main class="max-w-[1500px] mx-auto px-6 py-5">
+
+    <!-- ═════════════════════ DASHBOARD VIEW ═════════════════════ -->
+    <section id="view-dashboard" hidden class="space-y-3">
+
+      <!-- Title + controls -->
+      <div class="flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-0.5">
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Overview</p>
+            <span class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live
+            </span>
+            <span class="h-1 w-1 rounded-full bg-slate-300"></span>
+            <p class="text-[11px] text-slate-500 truncate" id="dash-greeting">Real-time performance across all doers and frequencies.</p>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-slate-900">Dashboard</h2>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="text-right hidden sm:block">
+            <div class="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Now</div>
+            <div class="text-xs font-bold text-slate-900 num" id="dash-clock">—</div>
+          </div>
+          <button id="dash-sync" class="flex items-center gap-1.5 bg-brand hover:bg-brand-700 text-white text-sm font-semibold px-3 py-2 rounded-xl transition shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">bolt</span>
+            <span>Sync Now</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter bar (rendered dynamically) -->
+      <div id="dash-filters" class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-3 shadow-card">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div id="kpi-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4 stagger">
+        <!-- KPI tiles injected by renderDashboard() -->
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 stagger">
+        <!-- Department-wise performance -->
+        <div class="xl:col-span-2 bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-6 shadow-card hover:shadow-lift hover:-translate-y-1 transition-all duration-300">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">By Department</p>
+              <h3 class="text-lg font-bold text-slate-900 mt-0.5">Department-wise performance</h3>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] uppercase tracking-widest text-slate-400">Departments</p>
+              <p class="text-2xl font-bold text-slate-900 num" id="dept-count">—</p>
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-[11px] text-slate-500">
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#10b981"></span>Done</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#3b82f6"></span>Today</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#f59e0b"></span>Upcoming</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#ef4444"></span>Delayed</span>
+          </div>
+
+          <div id="dept-perf" class="space-y-1 max-h-80 overflow-y-auto pr-1">
+            <!-- rows injected -->
+          </div>
+        </div>
+
+        <!-- Status donut -->
+        <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-6 shadow-card hover:shadow-lift hover:-translate-y-1 transition-all duration-300 flex flex-col">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Status Breakdown</p>
+              <h3 class="text-lg font-bold text-slate-900 mt-0.5">Composition</h3>
+            </div>
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Live"></span>
+          </div>
+          <div class="flex items-center gap-5">
+            <div class="relative shrink-0">
+              <div id="donut" class="donut"></div>
+              <div class="absolute inset-0 grid place-items-center pointer-events-none">
+                <div class="text-center">
+                  <div class="text-[9px] font-semibold uppercase tracking-widest text-slate-400" id="donut-center-label">Total</div>
+                  <div class="text-2xl font-black num text-slate-900 leading-tight" id="donut-center-value">—</div>
+                  <div class="text-[10px] text-slate-500 mt-0.5" id="donut-center-sub">tasks</div>
+                </div>
+              </div>
+            </div>
+            <div id="donut-legend" class="flex-1 space-y-2.5 text-sm">
+              <!-- legend injected -->
+            </div>
+          </div>
+          <!-- Bottom strip: dominant status -->
+          <div class="mt-auto pt-5 border-t border-slate-100 grid grid-cols-2 gap-3" id="donut-strip">
+            <!-- injected -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-6 shadow-card">
+        <div class="flex items-start justify-between mb-4 gap-4">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Team Health</p>
+            <h3 class="text-lg font-bold text-slate-900 mt-0.5">Delayed by doer</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="leaderboard-count" class="text-[11px] text-slate-400 uppercase tracking-widest">—</span>
+            <button id="leaderboard-toggle" class="inline-flex items-center gap-1 text-xs font-semibold text-brand bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition">
+              <span class="material-symbols-outlined text-[14px]" id="leaderboard-toggle-icon">expand_more</span>
+              <span id="leaderboard-toggle-label">Show all</span>
+            </button>
+          </div>
+        </div>
+        <div id="leaderboard" class="space-y-2">
+          <!-- rows injected -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════════════ MASTER CHECKLIST VIEW ═════════════════════ -->
+    <section id="view-master" hidden class="space-y-3">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Operations</p>
+            <span class="h-1 w-1 rounded-full bg-slate-300"></span>
+            <p class="text-[11px] text-slate-500">All occurrences in the active window · click a KPI to filter</p>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-slate-900">Master Checklist</h2>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-3 shadow-card">
+        <div id="master-filters" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+          <!-- filters injected -->
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div id="master-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- KPI cards injected -->
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] shadow-card overflow-hidden">
+        <div class="overflow-auto max-h-[70vh]">
+          <table class="min-w-full text-sm">
+            <thead class="sticky-head" id="master-thead">
+              <!-- rendered by JS so headers can carry sort + filter affordances -->
+            </thead>
+            <tbody id="master-tbody" class="divide-y divide-slate-100">
+              <!-- rows injected -->
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40 text-[11px] uppercase tracking-widest text-slate-500 flex items-center justify-between">
+          <span id="master-count">— rows</span>
+          <span>Window: <span id="window-label" class="text-slate-700">—</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════════════ TASKS VIEW ═════════════════════ -->
+    <section id="view-tasks" hidden class="space-y-5">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Catalog</p>
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900 mt-1">Tasks</h2>
+          <p class="text-sm text-slate-500 mt-1.5">Recurring task definitions. Editing a task regenerates its future occurrences.</p>
+        </div>
+        <button id="task-add-btn" class="flex items-center gap-1.5 bg-brand hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-sm">
+          <span class="material-symbols-outlined text-[18px]">add_circle</span>
+          <span>New task</span>
+        </button>
+      </div>
+
+      <!-- Filter bar -->
+      <div id="tasks-filters" class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-4 shadow-card"></div>
+
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] shadow-card overflow-hidden">
+        <div class="overflow-auto max-h-[70vh]">
+          <table class="min-w-full text-sm">
+            <thead class="sticky-head">
+              <tr class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                <th class="text-left px-5 py-3 border-b border-slate-200">Task name</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Doer</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Freq</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">From</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">To</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Status</th>
+                <th class="text-right px-5 py-3 border-b border-slate-200">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tasks-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40 text-[11px] uppercase tracking-widest text-slate-500" id="tasks-count">— tasks</div>
+      </div>
+    </section>
+
+    <!-- ═════════════════════ SCORECARD VIEW ═════════════════════ -->
+    <section id="view-scorecard" hidden class="space-y-4">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Performance</p>
+            <span class="h-1 w-1 rounded-full bg-slate-300"></span>
+            <p class="text-[11px] text-slate-500">Per-doer monthly scorecard · admin only</p>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-slate-900">Scorecards</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="sc-print" class="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-3 py-2 rounded-xl transition shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">print</span><span>Print</span>
+          </button>
+          <button id="sc-export" class="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-3 py-2 rounded-xl transition shadow-sm">
+            <span class="material-symbols-outlined text-[16px]">download</span><span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Doer + period picker -->
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-3 shadow-card">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3" id="sc-controls"></div>
+        <div class="mt-3 flex flex-wrap items-center gap-2" id="sc-presets"></div>
+      </div>
+
+      <!-- Scorecard body -->
+      <div id="sc-body" class="space-y-4">
+        <!-- rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ═════════════════════ DOERS VIEW ═════════════════════ -->
+    <section id="view-doers" hidden class="space-y-5">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Team</p>
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900 mt-1">Doers</h2>
+          <p class="text-sm text-slate-500 mt-1.5">People accountable for tasks. Deleting a doer is blocked while they have tasks.</p>
+        </div>
+        <button id="doer-add-btn" class="flex items-center gap-1.5 bg-brand hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-sm">
+          <span class="material-symbols-outlined text-[18px]">person_add</span>
+          <span>New doer</span>
+        </button>
+      </div>
+
+      <!-- Search bar -->
+      <div id="doers-filters" class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-3 shadow-card"></div>
+
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] shadow-card overflow-hidden">
+        <div class="overflow-auto max-h-[70vh]">
+          <table class="min-w-full text-sm">
+            <thead class="sticky-head">
+              <tr class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                <th class="text-left px-5 py-3 border-b border-slate-200">Name</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Department</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Email</th>
+                <th class="text-right px-5 py-3 border-b border-slate-200">Action</th>
+              </tr>
+            </thead>
+            <tbody id="doers-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40 text-[11px] uppercase tracking-widest text-slate-500" id="doers-count">— doers</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Modal mount -->
+<div id="modal-root"></div>
+
+<!-- Toast container -->
+<div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+<!-- ────────────────────────────────────────────────────────────────────────
+     SCRIPTS
+─────────────────────────────────────────────────────────────────────── -->
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ─── Config ───────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://hwawiudaevydbglzdync.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3YXdpdWRhZXZ5ZGJnbHpkeW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMTg0OTYsImV4cCI6MjA5Mzg5NDQ5Nn0.5-4Np45ANbunPXxwaXT_95vpDsUm34PNJQskDpDr_sQ';
+const PRODUCTION_API_BASE = 'https://checklist-backend.onrender.com';
+const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE = isLocal ? 'http://localhost:3000' : PRODUCTION_API_BASE;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── Global state ─────────────────────────────────────────────────────
+const state = {
+  activeView: 'dashboard',
+  session: null,
+  user: null,
+  tasks: [],
+  master: [],
+  doers: [],
+  loading: false,
+  sort: { key: '', dir: '' },   // dir: 'asc' | 'desc' | ''
+  filters: {
+    dashDoer: '',
+    dashDept: '',
+    dashFrom: '',
+    dashTo: '',
+    mDoer: '',
+    mDept: '',
+    mTask: '',
+    mFreq: '',
+    mStatus: 'Today',
+    mFrom: '',
+    mTo: '',
+    tDoer: '',
+    tSearch: '',
+    tFreq: '',
+    tFrom: '',
+    tTo: '',
+    dSearch: '',
+  },
+};
+
+// ─── Utilities ────────────────────────────────────────────────────────
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const fmtNum = (n) => new Intl.NumberFormat('en-US').format(n ?? 0);
+// Format ISO date (YYYY-MM-DD) as DD/MM/YYYY. Pass-through for non-ISO strings.
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+};
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const addDaysIso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const initials = (s) => (s || '?').split(/[@\s.]/).filter(Boolean).slice(0,2).map(p => p[0]?.toUpperCase()).join('') || '?';
+const statusKey = (s) => (s || '').replace(/\s+/g, '');
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Toast
+function toast(msg, kind = 'info') {
+  const colors = {
+    info:    'bg-slate-900 text-white',
+    success: 'bg-emerald-600 text-white',
+    error:   'bg-red-600 text-white',
+    warn:    'bg-amber-500 text-white',
+  };
+  const icon = { info: 'info', success: 'check_circle', error: 'error', warn: 'warning' }[kind];
+  const el = document.createElement('div');
+  el.className = `toast-in pointer-events-auto flex items-center gap-2.5 ${colors[kind] || colors.info} px-4 py-2.5 rounded-xl shadow-lift text-sm font-medium max-w-sm`;
+  el.innerHTML = `<span class="material-symbols-outlined text-[18px]">${icon}</span><span>${escapeHtml(msg)}</span>`;
+  $('#toast-container').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity 0.3s, transform 0.3s'; el.style.opacity = 0; el.style.transform = 'translateX(20px)'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ─── API ──────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {}),
+    Authorization: 'Bearer ' + state.session.access_token,
+  };
+  const res = await fetch(API_BASE + path, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('Session expired'); }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  $('#login-error').hidden = true;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: fd.get('email'), password: fd.get('password'),
+    });
+    if (error) throw error;
+    state.session = data.session;
+    await afterLogin();
+  } catch (err) {
+    $('#login-error').textContent = err.message;
+    $('#login-error').hidden = false;
+  }
+});
+
+$('#logout-btn').addEventListener('click', () => logout());
+
+function logout() {
+  supabase.auth.signOut().catch(() => {});
+  state.session = null;
+  state.user = null;
+  state.tasks = []; state.master = []; state.doers = [];
+  $('#login-screen').hidden = false;
+  $('#app-screen').hidden = true;
+}
+
+async function afterLogin() {
+  $('#login-screen').hidden = true;
+  $('#app-screen').hidden = false;
+
+  // Header user UI
+  // Show skeletons first
+  paintAllSkeletons();
+  renderTabs();
+
+  try {
+    const boot = await api('/api/bootstrap');
+    state.user = boot.user;
+    state.doers = boot.doers || [];
+    state.tasks = boot.tasks || [];
+    state.master = boot.masterWindow?.rows || [];
+
+    paintUserHeader();
+    renderTabs();
+    switchView(state.user.isAdmin ? 'dashboard' : 'master');
+    toast(`Welcome back, ${(state.user.email || '').split('@')[0]}`, 'success');
+  } catch (err) {
+    toast('Failed to load: ' + err.message, 'error');
+  }
+}
+
+// Restore session
+(async () => {
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    state.session = data.session;
+    await afterLogin();
+  }
+})();
+
+function paintUserHeader() {
+  const u = state.user || {};
+  $('#user-email').textContent = u.email || '—';
+  $('#user-role').textContent = u.isAdmin ? 'Administrator' : 'Member';
+  $('#user-initials').textContent = initials(u.email);
+}
+
+// ─── Skeletons ────────────────────────────────────────────────────────
+function paintAllSkeletons() {
+  // KPI grid
+  $('#kpi-grid').innerHTML = Array.from({ length: 6 }).map(() => `
+    <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-5 shadow-card relative overflow-hidden">
+      <div class="skeleton h-3 w-20 rounded"></div>
+      <div class="skeleton h-9 w-28 rounded mt-3"></div>
+      <div class="skeleton h-3 w-16 rounded mt-3"></div>
+    </div>
+  `).join('');
+  // Dept performance
+  $('#dept-perf').innerHTML = Array.from({ length: 5 }).map(() => `<div class="skeleton h-10 rounded-lg my-1"></div>`).join('');
+  $('#donut-legend').innerHTML = Array.from({ length: 4 }).map(() => `<div class="skeleton h-4 w-full rounded"></div>`).join('');
+  // Leaderboard
+  $('#leaderboard').innerHTML = Array.from({ length: 5 }).map(() => `<div class="skeleton h-12 rounded-xl"></div>`).join('');
+  // Master tbody
+  $('#master-tbody').innerHTML = Array.from({ length: 8 }).map(() => `
+    <tr><td colspan="7" class="px-5 py-3"><div class="skeleton h-5 w-full rounded"></div></td></tr>
+  `).join('');
+}
+
+// ─── Tabs / Router ────────────────────────────────────────────────────
+function renderTabs() {
+  const allTabs = [
+    { id: 'dashboard', label: 'Dashboard',        icon: 'space_dashboard',   adminOnly: true  },
+    { id: 'master',    label: 'Master Checklist', icon: 'fact_check',        adminOnly: false },
+    { id: 'scorecard', label: 'Scorecards',       icon: 'workspace_premium', adminOnly: true  },
+    { id: 'tasks',     label: 'Tasks',            icon: 'task',              adminOnly: true  },
+    { id: 'doers',     label: 'Doers',            icon: 'group',             adminOnly: true  },
+  ];
+  const isAdmin = state.user?.isAdmin;
+  const tabs = allTabs.filter(t => !t.adminOnly || isAdmin);
+
+  $('#tabs').innerHTML = tabs.map(t => `
+    <button data-view="${t.id}" class="relative flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition ${state.activeView === t.id ? 'tab-active' : ''}">
+      <span class="material-symbols-outlined text-[18px]">${t.icon}</span>
+      <span>${t.label}</span>
+    </button>
+  `).join('');
+
+  $$('#tabs button').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
+}
+
+function switchView(id) {
+  // Defense in depth: non-admins can't open admin-only views even via direct call
+  const adminOnly = ['dashboard', 'scorecard', 'tasks', 'doers'];
+  if (adminOnly.includes(id) && !state.user?.isAdmin) id = 'master';
+
+  state.activeView = id;
+  ['dashboard', 'master', 'scorecard', 'tasks', 'doers'].forEach(v => {
+    const el = $('#view-' + v);
+    if (el) el.hidden = (v !== id);
+  });
+  renderTabs();
+
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'master')    renderMaster();
+  if (id === 'scorecard') renderScorecard();
+  if (id === 'tasks')     renderTasks();
+  if (id === 'doers')     renderDoers();
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────
+function dashRows() {
+  const { dashDoer, dashDept, dashFrom, dashTo } = state.filters;
+  return state.master.filter(r => {
+    if (dashDoer && r.doer_email !== dashDoer) return false;
+    if (dashDept && deptForEmail(r.doer_email) !== dashDept) return false;
+    if (dashFrom && r.planned_date < dashFrom) return false;
+    if (dashTo   && r.planned_date > dashTo)   return false;
+    return true;
+  });
+}
+
+function activeDashFilterCount() {
+  const f = state.filters;
+  return ['dashDoer', 'dashDept', 'dashFrom', 'dashTo'].filter(k => f[k]).length;
+}
+function activeMasterFilterCount() {
+  const f = state.filters;
+  return ['mDoer', 'mDept', 'mTask', 'mFreq', 'mStatus', 'mFrom', 'mTo'].filter(k => f[k]).length;
+}
+function activeTasksFilterCount() {
+  const f = state.filters;
+  return ['tDoer', 'tSearch', 'tFreq', 'tFrom', 'tTo'].filter(k => f[k]).length;
+}
+
+// Sync helper: Dashboard's dashDoer and Scorecard's email stay in lockstep,
+// so picking a doer in one view auto-selects them in the other.
+function syncDoer(email) {
+  state.filters.dashDoer = email || '';
+  state.scorecard.email  = email || '';
+}
+
+function renderDashFilters() {
+  const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
+  $('#dash-filters').innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
+          <select id="df-doer" class="bg-transparent outline-none text-sm w-full">
+            <option value="">All doers</option>
+            ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${state.filters.dashDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Department</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">domain</span>
+          <select id="df-dept" class="bg-transparent outline-none text-sm w-full">
+            <option value="">All departments</option>
+            ${departments.map(d => `<option value="${escapeHtml(d)}" ${state.filters.dashDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">From</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+          <input id="df-from" type="date" value="${state.filters.dashFrom}" class="bg-transparent outline-none text-sm w-full" />
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">To</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+          <input id="df-to" type="date" value="${state.filters.dashTo}" class="bg-transparent outline-none text-sm w-full" />
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 flex items-center justify-between gap-2">
+      <span class="text-[10px] uppercase tracking-widest text-slate-400" id="df-summary">${activeDashFilterCount()} filter${activeDashFilterCount() === 1 ? '' : 's'} active</span>
+      <div class="flex items-center gap-2">
+        ${state.filters.dashDoer ? `
+          <button id="df-view-sc" class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition text-brand bg-brand-50 hover:bg-brand-100">
+            <span class="material-symbols-outlined text-[14px]">workspace_premium</span>
+            View Scorecard
+            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+          </button>` : ''}
+        <button id="df-clear" ${activeDashFilterCount() === 0 ? 'disabled' : ''} class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${activeDashFilterCount() === 0 ? 'text-slate-400 bg-slate-50 cursor-not-allowed' : 'text-red-700 bg-red-50 hover:bg-red-100'}">
+          <span class="material-symbols-outlined text-[14px]">filter_alt_off</span>
+          Clear filters
+        </button>
+      </div>
+    </div>
+  `;
+
+  const wire = (id, key) => $('#' + id)?.addEventListener('change', e => {
+    state.filters[key] = e.target.value;
+    renderDashboard();
+  });
+  // Doer change syncs Scorecard too
+  $('#df-doer')?.addEventListener('change', e => {
+    syncDoer(e.target.value);
+    renderDashboard();
+  });
+  wire('df-dept', 'dashDept');
+  wire('df-from', 'dashFrom');
+  wire('df-to',   'dashTo');
+  $('#df-clear')?.addEventListener('click', () => {
+    syncDoer('');
+    state.filters.dashDept = '';
+    state.filters.dashFrom = '';
+    state.filters.dashTo = '';
+    renderDashboard();
+  });
+  $('#df-view-sc')?.addEventListener('click', () => {
+    // syncDoer already set Scorecard.email when doer was picked
+    switchView('scorecard');
+  });
+}
+
+function computeKpis(rows) {
+  const tenAgo   = addDaysIso(-10);
+  const tomorrow = addDaysIso(1);
+  const sevenOut = addDaysIso(7);
+  const byStatus = rows.reduce((a, r) => (a[r.status] = (a[r.status] || 0) + 1, a), {});
+  const done = byStatus.Done || 0;
+  const delayed = byStatus.Delayed || 0;
+  const todayCount = byStatus.Today || 0;
+  const upcoming = byStatus['Upcoming Focus'] || 0;
+  const scheduled = byStatus.Scheduled || 0;
+
+  // On-time: of Done rows, how many were completed on or before planned
+  const doneRows = rows.filter(r => r.status === 'Done');
+  const onTime = doneRows.filter(r => !r.actual_date || r.actual_date <= r.planned_date).length;
+  const onTimePct = doneRows.length ? Math.round((onTime / doneRows.length) * 100) : 0;
+
+  // Completion rate: Done / (Done + Delayed + Today)
+  const completable = done + delayed + todayCount;
+  const completionPct = completable ? Math.round((done / completable) * 100) : 0;
+
+  // Avg delay days: of Done rows that were late
+  const lateDays = doneRows
+    .filter(r => r.actual_date && r.actual_date > r.planned_date)
+    .map(r => Math.round((new Date(r.actual_date) - new Date(r.planned_date)) / 86400000));
+  const avgDelay = lateDays.length ? (lateDays.reduce((a,b) => a+b, 0) / lateDays.length).toFixed(1) : '0.0';
+
+  // Active doers: distinct doer_email with at least one non-Done row
+  const activeDoers = new Set(rows.filter(r => r.status !== 'Done').map(r => r.doer_email)).size;
+
+  // Open backlog: Delayed rows from last 10 days + Today rows
+  const openBacklog = rows.filter(r =>
+    (r.status === 'Delayed' && r.planned_date >= tenAgo) ||
+    r.status === 'Today'
+  ).length;
+
+  // Upcoming workload: non-Done rows due in next 7 days, excluding today
+  const upcoming7 = rows.filter(r =>
+    r.status !== 'Done' &&
+    r.planned_date >= tomorrow &&
+    r.planned_date <= sevenOut
+  ).length;
+
+  return { onTimePct, completionPct, delayed, avgDelay, activeDoers, openBacklog, upcoming7, byStatus, doneCount: done, todayCount, upcomingCount: upcoming, scheduledCount: scheduled };
+}
+
+function kpiTile({ label, value, suffix = '', accent, glow, hint, icon, iconBg, dot }) {
+  return `
+    <div class="group bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] p-5 shadow-card hover:shadow-lift hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+      <div class="absolute -top-8 -right-8 h-28 w-28 rounded-full ${glow} blur-2xl opacity-70 pointer-events-none group-hover:scale-110 group-hover:opacity-90 transition-all duration-500"></div>
+      <div class="absolute top-0 left-5 right-5 h-px bg-gradient-to-r from-transparent ${dot} to-transparent opacity-0 group-hover:opacity-60 transition-opacity"></div>
+      <div class="flex items-center justify-between relative">
+        <div class="h-10 w-10 rounded-2xl ${iconBg} grid place-items-center shadow-inner">
+          <span class="material-symbols-outlined text-[20px] ${accent}">${icon}</span>
+        </div>
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">${label}</p>
+      </div>
+      <div class="mt-4 flex items-baseline gap-1 relative">
+        <span class="text-[42px] font-black num ${accent} leading-none tracking-tighter">${value}</span>
+        <span class="text-lg font-bold ${accent} mb-1">${suffix}</span>
+      </div>
+      <div class="mt-3 flex items-center gap-2 relative">
+        <span class="h-1 w-8 rounded-full ${dot} opacity-80"></span>
+        <p class="text-[11px] text-slate-500">${hint}</p>
+      </div>
+    </div>
+  `;
+}
+
+function tickDashClock() {
+  const clk = $('#dash-clock');
+  if (!clk) return;
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const date = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  clk.innerHTML = `<span class="text-slate-500 text-[11px] font-normal mr-1">${date}</span>${time}`;
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greetEl = $('#dash-greeting');
+  const name = (state.user?.email || '').split('@')[0].split('.')[0];
+  if (greetEl) greetEl.innerHTML = `<span class="font-semibold text-slate-700">${greeting}${name ? ', ' + name[0].toUpperCase() + name.slice(1) : ''}</span> · Real-time performance across all doers and frequencies.`;
+}
+
+function renderDashboard() {
+  renderDashFilters();
+  tickDashClock();
+  if (!window._clockTicker) window._clockTicker = setInterval(tickDashClock, 30000);
+  const rows = dashRows();
+  const k = computeKpis(rows);
+
+  $('#kpi-grid').innerHTML = [
+    kpiTile({ label: 'On-Time %',          value: fmtNum(k.onTimePct),     suffix: '%', accent: 'text-emerald-700', glow: 'bg-emerald-200/70', iconBg: 'bg-emerald-50', dot: 'bg-emerald-500', icon: 'verified',       hint: 'Done on or before planned date' }),
+    kpiTile({ label: 'Completion Rate',    value: fmtNum(k.completionPct), suffix: '%', accent: 'text-brand',       glow: 'bg-brand-200/70',   iconBg: 'bg-brand-50',   dot: 'bg-brand',       icon: 'trending_up',    hint: 'Done ÷ (Done + Delayed + Today)' }),
+    kpiTile({ label: 'Open Backlog',       value: fmtNum(k.openBacklog),                accent: 'text-red-700',     glow: 'bg-red-200/70',     iconBg: 'bg-red-50',     dot: 'bg-red-500',     icon: 'priority_high',  hint: 'Delayed (last 10 days) + Today' }),
+    kpiTile({ label: 'Avg Delay',          value: k.avgDelay,              suffix: 'd', accent: 'text-amber-700',   glow: 'bg-amber-200/70',   iconBg: 'bg-amber-50',   dot: 'bg-amber-500',   icon: 'timelapse',      hint: 'Days late on completed tasks' }),
+    kpiTile({ label: 'Active Doers',       value: fmtNum(k.activeDoers),                accent: 'text-sky-700',     glow: 'bg-sky-200/70',     iconBg: 'bg-sky-50',     dot: 'bg-sky-500',     icon: 'groups',         hint: 'Doers with open work in window' }),
+    kpiTile({ label: 'Upcoming Workload',  value: fmtNum(k.upcoming7),                  accent: 'text-violet-700',  glow: 'bg-violet-200/70',  iconBg: 'bg-violet-50',  dot: 'bg-violet-500',  icon: 'rocket_launch',  hint: 'Open rows due in next 7 days (excl. today)' }),
+  ].join('');
+
+  renderDeptPerformance(rows);
+  renderDonut(k);
+  renderLeaderboard(rows);
+}
+
+function renderDeptPerformance(rows) {
+  const TRACKED = ['Done', 'Today', 'Upcoming Focus', 'Delayed'];
+  const byDept = new Map();
+  for (const r of rows) {
+    if (!TRACKED.includes(r.status)) continue;  // ignore Scheduled
+    const dept = state.doers.find(d => d.email === r.doer_email)?.department || 'Unassigned';
+    if (!byDept.has(dept)) byDept.set(dept, { total: 0, Done: 0, Today: 0, 'Upcoming Focus': 0, Delayed: 0 });
+    const d = byDept.get(dept);
+    d.total++;
+    d[r.status] = (d[r.status] || 0) + 1;
+  }
+  const sorted = [...byDept.entries()].sort((a, b) => b[1].total - a[1].total);
+  $('#dept-count').textContent = fmtNum(sorted.length);
+
+  if (sorted.length === 0) {
+    $('#dept-perf').innerHTML = `<div class="py-10 text-center text-sm text-slate-500">No data in this window.</div>`;
+    return;
+  }
+
+  const colors = { Done: '#10b981', Today: '#3b82f6', 'Upcoming Focus': '#f59e0b', Delayed: '#ef4444' };
+
+  $('#dept-perf').innerHTML = sorted.map(([name, d], idx) => {
+    const completable = (d.Done || 0) + (d.Delayed || 0) + (d.Today || 0);
+    const pct = completable ? Math.round(((d.Done || 0) / completable) * 100) : 0;
+    const pctColor = pct >= 80 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : pct > 0 ? 'text-red-700' : 'text-slate-400';
+    const rankGrad = pct >= 80 ? 'from-emerald-400 to-emerald-600'
+                    : pct >= 50 ? 'from-amber-400 to-amber-600'
+                    : pct > 0   ? 'from-red-400 to-red-600'
+                    : 'from-slate-300 to-slate-400';
+    const segs = TRACKED
+      .map(s => ({ s, w: d.total ? ((d[s] || 0) / d.total) * 100 : 0, n: d[s] || 0 }))
+      .filter(x => x.w > 0);
+    return `
+      <div class="group hover:bg-slate-50 -mx-2 px-2 py-2.5 rounded-xl transition flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br ${rankGrad} text-white grid place-items-center text-xs font-bold num shrink-0 shadow-sm">#${idx + 1}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between mb-1.5 gap-3">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-sm font-semibold text-slate-900 truncate">${escapeHtml(name)}</span>
+              <span class="text-[10px] uppercase tracking-widest text-slate-400 whitespace-nowrap">${fmtNum(d.total)} tasks</span>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-base font-bold num ${pctColor}">${pct}%</span>
+              <span class="text-[10px] uppercase tracking-widest text-slate-400 ml-1">on-track</span>
+            </div>
+          </div>
+          <div class="h-2 bg-slate-100 rounded-full overflow-hidden flex shadow-inner" title="${segs.map(s => `${s.s}: ${s.n}`).join(' · ')}">
+            ${segs.map(s => `<div class="transition-all" style="width:${s.w}%; background:${colors[s.s]}" title="${s.s}: ${s.n}"></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDonut(k) {
+  const slices = [
+    { label: 'Done',           value: k.doneCount,       color: '#10b981' },
+    { label: 'Today',          value: k.todayCount,      color: '#3b82f6' },
+    { label: 'Upcoming Focus', value: k.upcomingCount,   color: '#f59e0b' },
+    { label: 'Delayed',        value: k.delayed,         color: '#ef4444' },
+  ];
+  const total = slices.reduce((a,s) => a + s.value, 0);
+  let cursor = 0;
+  const stops = slices.map(s => {
+    const start = (cursor / (total || 1)) * 100;
+    cursor += s.value;
+    const end = (cursor / (total || 1)) * 100;
+    return `${s.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+  }).join(', ');
+  $('#donut').style.background = total ? `conic-gradient(${stops})` : 'conic-gradient(#e2e8f0 0% 100%)';
+
+  // Center text — biggest slice
+  const dominant = [...slices].sort((a, b) => b.value - a.value)[0];
+  const dominantPct = total ? Math.round((dominant.value / total) * 100) : 0;
+  $('#donut-center-label').textContent = total ? dominant.label : 'No data';
+  $('#donut-center-value').textContent = total ? fmtNum(dominant.value) : '0';
+  $('#donut-center-sub').innerHTML = total ? `<span class="num font-semibold" style="color:${dominant.color}">${dominantPct}%</span> of total` : 'tasks';
+
+  $('#donut-legend').innerHTML = slices.map(s => {
+    const pct = total ? Math.round((s.value / total) * 100) : 0;
+    return `
+      <div class="flex items-center gap-2.5 group hover:bg-slate-50 -mx-2 px-2 py-1 rounded-md transition">
+        <span class="h-2.5 w-2.5 rounded-sm shrink-0" style="background:${s.color}"></span>
+        <span class="text-slate-600 text-xs flex-1">${s.label}</span>
+        <span class="text-xs font-bold text-slate-900 num">${fmtNum(s.value)}</span>
+        <span class="text-[10px] uppercase tracking-widest text-slate-400 num w-9 text-right">${pct}%</span>
+      </div>
+    `;
+  }).join('');
+
+  // Bottom strip — 2 quick stats: net completed, work pending
+  const completed = k.doneCount;
+  const pending = k.todayCount + k.upcomingCount + k.delayed;
+  $('#donut-strip').innerHTML = `
+    <div class="flex flex-col">
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">Completed</span>
+      <span class="text-xl font-bold text-emerald-700 num">${fmtNum(completed)}</span>
+    </div>
+    <div class="flex flex-col">
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">Open work</span>
+      <span class="text-xl font-bold text-red-700 num">${fmtNum(pending)}</span>
+    </div>
+  `;
+}
+
+function renderLeaderboard(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (r.status !== 'Delayed') continue;
+    map.set(r.doer_email, (map.get(r.doer_email) || 0) + 1);
+  }
+  const all = [...map.entries()].sort((a,b) => b[1] - a[1]);
+  const expanded = state.leaderboardExpanded || false;
+  const visible = expanded ? all : all.slice(0, 5);
+  const container = $('#leaderboard');
+  container.className = expanded && all.length > 5 ? 'space-y-1 max-h-96 overflow-y-auto pr-1' : 'space-y-2';
+
+  // Update header count + toggle label/icon
+  $('#leaderboard-count').textContent = expanded ? `All ${all.length}` : `Top ${Math.min(5, all.length)} of ${all.length}`;
+  const toggleBtn = $('#leaderboard-toggle');
+  if (toggleBtn) {
+    toggleBtn.style.display = all.length > 5 ? '' : 'none';
+    $('#leaderboard-toggle-label').textContent = expanded ? 'Show top 5' : 'Show all';
+    $('#leaderboard-toggle-icon').textContent  = expanded ? 'expand_less' : 'expand_more';
+    toggleBtn.onclick = () => {
+      state.leaderboardExpanded = !state.leaderboardExpanded;
+      renderLeaderboard(rows);
+    };
+  }
+
+  if (all.length === 0) {
+    container.innerHTML = `<div class="py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-emerald-500 text-4xl">celebration</span><div class="mt-2">No delayed tasks in this window.</div></div>`;
+    return;
+  }
+  const top = visible;
+  const maxCount = all[0][1];
+  const medalStyles = [
+    'bg-gradient-to-br from-yellow-300 to-yellow-500 text-white shadow-md shadow-yellow-400/30',
+    'bg-gradient-to-br from-slate-300 to-slate-500 text-white shadow-md shadow-slate-400/30',
+    'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/30',
+    'bg-slate-100 text-slate-500',
+    'bg-slate-100 text-slate-500',
+  ];
+  const medalIcons = ['workspace_premium', 'workspace_premium', 'workspace_premium', '', ''];
+
+  $('#leaderboard').innerHTML = top.map(([email, count], idx) => {
+    const doer = state.doers.find(d => d.email === email);
+    const pct = Math.round((count / maxCount) * 100);
+    const medalStyle = medalStyles[idx];
+    const icon = medalIcons[idx];
+    return `
+      <div data-leaderboard-email="${escapeHtml(email)}" class="flex items-center gap-4 p-3 rounded-xl hover:bg-brand-50/40 transition group cursor-pointer" title="Open ${escapeHtml(doer?.name || email)}'s scorecard">
+        <div class="h-9 w-9 rounded-xl ${medalStyle} grid place-items-center text-xs font-bold num shrink-0">
+          ${icon ? `<span class="material-symbols-outlined text-[20px]">${icon}</span>` : `#${idx + 1}`}
+        </div>
+        <div class="h-10 w-10 rounded-full bg-gradient-to-br from-brand-300 to-brand text-white text-xs font-bold grid place-items-center shrink-0 shadow-sm">${initials(doer?.name || email)}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-slate-900 truncate group-hover:text-brand">${escapeHtml(doer?.name || email)}</div>
+          <div class="text-[11px] text-slate-500 truncate">${escapeHtml(doer?.department || email)}</div>
+        </div>
+        <div class="flex-1 hidden md:block max-w-xs">
+          <div class="h-2 bg-red-50 rounded-full overflow-hidden shadow-inner">
+            <div class="h-full bg-gradient-to-r from-red-400 via-red-500 to-red-600 rounded-full transition-all duration-700" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-2xl font-black text-red-700 num leading-none">${fmtNum(count)}</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 mt-0.5">delayed</div>
+        </div>
+        <span class="material-symbols-outlined text-slate-300 group-hover:text-brand transition text-[18px] shrink-0">arrow_forward</span>
+      </div>
+    `;
+  }).join('');
+
+  // Click-through: open this doer's scorecard
+  $$('#leaderboard [data-leaderboard-email]').forEach(row => row.addEventListener('click', () => {
+    syncDoer(row.dataset.leaderboardEmail);
+    switchView('scorecard');
+  }));
+}
+
+$('#dash-sync').addEventListener('click', () => syncAll());
+
+// ─── MASTER CHECKLIST ────────────────────────────────────────────────
+function deptForEmail(email) {
+  return state.doers.find(d => d.email === email)?.department || '';
+}
+
+function masterFilteredBase() {
+  const f = state.filters;
+  const dq = (f.mDoer || '').trim().toLowerCase();
+  const tq = (f.mTask || '').trim().toLowerCase();
+  return state.master.filter(r => {
+    if (dq) {
+      const doer = state.doers.find(d => d.email === r.doer_email);
+      const nameMatch  = (doer?.name || '').toLowerCase().includes(dq);
+      const emailMatch = (r.doer_email || '').toLowerCase().includes(dq);
+      if (!nameMatch && !emailMatch) return false;
+    }
+    if (tq && !((r.task_name || '').toLowerCase().includes(tq))) return false;
+    if (f.mDept && deptForEmail(r.doer_email) !== f.mDept) return false;
+    if (f.mFreq && r.freq !== f.mFreq) return false;
+    if (f.mFrom && r.planned_date < f.mFrom) return false;
+    if (f.mTo   && r.planned_date > f.mTo) return false;
+    return true;
+  });
+}
+
+function renderMaster() {
+  // Filters
+  const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
+  const visibleDoers = state.user?.isAdmin ? state.doers : state.doers.filter(d => d.email === state.user.email);
+  const visibleTasks = state.user?.isAdmin ? state.tasks : state.tasks.filter(t => t.doer_email === state.user.email);
+
+  $('#master-filters').innerHTML = `
+    <div class="contents">
+    ${state.user?.isAdmin ? `
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">search</span>
+        <input id="mf-doer" type="text" autocomplete="off" placeholder="Search doer name or email…"
+               value="${escapeHtml(state.filters.mDoer)}"
+               class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
+        ${state.filters.mDoer ? `<button id="mf-doer-clear" type="button" class="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-red-700 hover:bg-red-50 transition shrink-0"><span class="material-symbols-outlined text-[14px]">close</span></button>` : ''}
+      </div>
+    </div>
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Department</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">domain</span>
+        <select id="mf-dept" class="bg-transparent outline-none text-sm w-full">
+          <option value="">All departments</option>
+          ${departments.map(d => `<option value="${escapeHtml(d)}" ${state.filters.mDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+        </select>
+      </div>
+    </div>` : ''}
+
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Task</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">search</span>
+        <input id="mf-task" type="text" autocomplete="off" placeholder="Search task name…"
+               value="${escapeHtml(state.filters.mTask)}"
+               class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
+        ${state.filters.mTask ? `<button id="mf-task-clear" type="button" class="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-red-700 hover:bg-red-50 transition shrink-0"><span class="material-symbols-outlined text-[14px]">close</span></button>` : ''}
+      </div>
+    </div>
+
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Frequency</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">repeat</span>
+        <select id="mf-freq" class="bg-transparent outline-none text-sm w-full">
+          <option value="">All frequencies</option>
+          ${[...new Set(state.master.map(r => r.freq).filter(Boolean))].sort().map(q => `<option value="${escapeHtml(q)}" ${state.filters.mFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Status</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">flag</span>
+        <select id="mf-status" class="bg-transparent outline-none text-sm w-full">
+          ${['', 'Today', 'Delayed', 'Done', 'Upcoming Focus'].map(s => `<option value="${escapeHtml(s)}" ${state.filters.mStatus === s ? 'selected' : ''}>${s || 'All statuses'}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">From</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+        <input id="mf-from" type="date" value="${state.filters.mFrom}" class="bg-transparent outline-none text-sm w-full" />
+      </div>
+    </div>
+
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">To</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+        <input id="mf-to" type="date" value="${state.filters.mTo}" class="bg-transparent outline-none text-sm w-full" />
+      </div>
+    </div>
+    </div>
+
+    <div class="mt-3 flex items-center justify-between gap-2 col-span-full">
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">${activeMasterFilterCount()} filter${activeMasterFilterCount() === 1 ? '' : 's'} active</span>
+      <button id="mf-clear" ${activeMasterFilterCount() === 0 ? 'disabled' : ''} class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${activeMasterFilterCount() === 0 ? 'text-slate-400 bg-slate-50 cursor-not-allowed' : 'text-red-700 bg-red-50 hover:bg-red-100'}">
+        <span class="material-symbols-outlined text-[14px]">filter_alt_off</span>
+        Clear filters
+      </button>
+    </div>
+  `;
+
+  // Wire filter handlers
+  const wire = (id, key) => $('#' + id)?.addEventListener('change', e => { state.filters[key] = e.target.value; renderMaster(); });
+  wire('mf-dept', 'mDept');
+  wire('mf-freq', 'mFreq');
+  wire('mf-status', 'mStatus'); wire('mf-from', 'mFrom'); wire('mf-to', 'mTo');
+
+  // Debounced live search for Doer + Task (contains-match)
+  const wireSearch = (id, key) => {
+    const el = $('#' + id);
+    if (!el) return;
+    let timer;
+    el.addEventListener('input', e => {
+      clearTimeout(timer);
+      const v = e.target.value;
+      timer = setTimeout(() => {
+        state.filters[key] = v;
+        renderMaster();
+        const fresh = $('#' + id);
+        if (fresh) { fresh.focus(); fresh.setSelectionRange(v.length, v.length); }
+      }, 180);
+    });
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { state.filters[key] = ''; renderMaster(); }
+    });
+  };
+  wireSearch('mf-doer', 'mDoer');
+  wireSearch('mf-task', 'mTask');
+  $('#mf-doer-clear')?.addEventListener('click', () => { state.filters.mDoer = ''; renderMaster(); });
+  $('#mf-task-clear')?.addEventListener('click', () => { state.filters.mTask = ''; renderMaster(); });
+  $('#mf-clear')?.addEventListener('click', () => {
+    state.filters.mDoer = ''; state.filters.mDept = ''; state.filters.mTask = '';
+    state.filters.mFreq = ''; state.filters.mStatus = '';
+    state.filters.mFrom = ''; state.filters.mTo = '';
+    renderMaster();
+  });
+
+  // KPI cards
+  const base = masterFilteredBase();
+  const counts = base.reduce((a, r) => (a[r.status] = (a[r.status] || 0) + 1, a), {});
+  const kpiList = [
+    { key: 'Today',          label: 'Today',          value: counts.Today || 0,           color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',    glow: 'bg-blue-200/70' },
+    { key: 'Delayed',        label: 'Delayed',        value: counts.Delayed || 0,         color: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200',     glow: 'bg-red-200/70' },
+    { key: 'Done',           label: 'Done',           value: counts.Done || 0,            color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', glow: 'bg-emerald-200/70' },
+    { key: 'Upcoming Focus', label: 'Upcoming',       value: counts['Upcoming Focus']||0, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200',   glow: 'bg-amber-200/70' },
+  ];
+
+  $('#master-kpis').innerHTML = kpiList.map(k => {
+    const active = state.filters.mStatus === k.key;
+    return `
+      <button data-kpi="${k.key}" class="text-left bg-white/90 backdrop-blur-sm border ${active ? k.border + ' ring-2 ring-brand/30' : 'border-slate-100'} rounded-2xl px-4 py-3 shadow-card hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden">
+        <div class="absolute -top-4 -right-4 h-16 w-16 rounded-full ${k.glow} blur-2xl opacity-70 pointer-events-none"></div>
+        <div class="flex items-center justify-between relative">
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">${k.label}</p>
+          <p class="text-[9px] uppercase tracking-widest text-slate-400">${active ? '× Clear' : 'Filter'}</p>
+        </div>
+        <div class="mt-1 text-[26px] font-extrabold ${k.color} num relative leading-tight">${fmtNum(k.value)}</div>
+      </button>
+    `;
+  }).join('');
+  $$('#master-kpis [data-kpi]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.kpi;
+    state.filters.mStatus = state.filters.mStatus === k ? '' : k;
+    renderMaster();
+  }));
+
+  // Render header (with sort indicators + filter icons)
+  renderMasterHeader();
+
+  // Table rows — cap at 500 for fast re-render. KPI counts above use the full set.
+  const ROW_CAP = 500;
+  const rows = state.filters.mStatus ? base.filter(r => r.status === state.filters.mStatus) : base;
+  const sorted = [...rows].sort(compareRows);
+  const visible = sorted.slice(0, ROW_CAP);
+
+  $('#master-tbody').innerHTML = visible.length === 0 ? `
+    <tr><td colspan="9" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">filter_alt_off</span>No matching occurrences.</td></tr>
+  ` : visible.map(r => {
+    const doer = state.doers.find(d => d.email === r.doer_email);
+    const isDone = r.status === 'Done';
+    // Highlight late completion in red, on-time in emerald
+    const lateClass = r.actual_date && r.actual_date > r.planned_date ? 'text-red-700 font-medium'
+                    : r.actual_date ? 'text-emerald-700 font-medium' : 'text-slate-400';
+    // Compute delay days (positive = late, 0/negative = on time)
+    let delayCell;
+    if (!r.actual_date) {
+      delayCell = `<span class="text-slate-300">—</span>`;
+    } else {
+      const days = Math.round((new Date(r.actual_date) - new Date(r.planned_date)) / 86400000);
+      if (days <= 0) {
+        delayCell = `<span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[12px]">check_circle</span>On time</span>`;
+      } else {
+        delayCell = `<span class="inline-flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full num"><span class="material-symbols-outlined text-[12px]">schedule</span>+${days}d</span>`;
+      }
+    }
+    return `
+      <tr data-key="${escapeHtml(r.occurrence_key)}" class="hover:bg-slate-50 transition">
+        <td class="px-5 py-3 text-sm text-slate-600 whitespace-nowrap">${escapeHtml(doer?.name || r.doer_email)}</td>
+        <td class="px-5 py-3 text-sm text-slate-500 whitespace-nowrap">${escapeHtml(doer?.department || '—')}</td>
+        <td class="px-5 py-3 text-sm text-slate-900 font-medium">${escapeHtml(r.task_name || '')}</td>
+        <td class="px-5 py-3 text-xs text-slate-500 uppercase tracking-widest">${escapeHtml(r.freq || '')}</td>
+        <td class="px-5 py-3 whitespace-nowrap text-sm text-slate-700 num">${fmtDate(r.planned_date)}</td>
+        <td class="px-5 py-3 whitespace-nowrap text-sm num ${lateClass}">${r.actual_date ? fmtDate(r.actual_date) : '—'}</td>
+        <td class="px-5 py-3 whitespace-nowrap">${delayCell}</td>
+        <td class="px-5 py-3"><span class="badge badge-${statusKey(r.status)}">${r.status}</span></td>
+        <td class="px-5 py-3 text-right">
+          ${isDone
+            ? `<button data-action="undone" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">undo</span>Undo</button>`
+            : `<button data-action="done" class="inline-flex items-center gap-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-sm"><span class="material-symbols-outlined text-[14px]">check</span>Done</button>`}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Wire action buttons
+  $$('#master-tbody tr').forEach(tr => {
+    const btn = tr.querySelector('button[data-action]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const key = tr.dataset.key;
+      if (btn.dataset.action === 'done') markDone(key);
+      else markUndone(key);
+    });
+  });
+
+  const truncated = sorted.length > ROW_CAP;
+  $('#master-count').innerHTML = truncated
+    ? `<span class="text-amber-700">Showing ${fmtNum(ROW_CAP)} of ${fmtNum(sorted.length)}</span> · narrow filters to see more`
+    : `${fmtNum(sorted.length)} of ${fmtNum(state.master.length)} rows`;
+  const dates = state.master.map(r => r.planned_date).sort();
+  $('#window-label').textContent = dates.length ? `${fmtDate(dates[0])} → ${fmtDate(dates[dates.length-1])}` : '—';
+}
+
+// ─── Column sort + per-column filter popover ──────────────────────────
+function cycleSort(key) {
+  if (state.sort.key !== key)        state.sort = { key, dir: 'asc' };
+  else if (state.sort.dir === 'asc') state.sort.dir = 'desc';
+  else                               state.sort = { key: '', dir: '' };
+  renderMaster();
+}
+
+function compareRows(a, b) {
+  const { key, dir } = state.sort;
+  if (!key || !dir) return a.planned_date.localeCompare(b.planned_date);
+  let av, bv;
+  if (key === 'doer_name') {
+    av = state.doers.find(d => d.email === a.doer_email)?.name || a.doer_email;
+    bv = state.doers.find(d => d.email === b.doer_email)?.name || b.doer_email;
+  } else if (key === 'department') {
+    av = deptForEmail(a.doer_email) || '';
+    bv = deptForEmail(b.doer_email) || '';
+  } else if (key === 'delay') {
+    av = a.actual_date ? (new Date(a.actual_date) - new Date(a.planned_date)) / 86400000 : -1e9;
+    bv = b.actual_date ? (new Date(b.actual_date) - new Date(b.planned_date)) / 86400000 : -1e9;
+  } else if (key === 'task_name') {
+    av = a.task_name || ''; bv = b.task_name || '';
+  } else {
+    av = (a[key] ?? ''); bv = (b[key] ?? '');
+  }
+  let cmp;
+  if (typeof av === 'string') cmp = av.localeCompare(bv);
+  else                        cmp = av < bv ? -1 : av > bv ? 1 : 0;
+  return dir === 'asc' ? cmp : -cmp;
+}
+
+function masterHeaderCell(key, label, filterMeta) {
+  const active = state.sort.key === key;
+  const arrow = active ? (state.sort.dir === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more';
+  const arrowCls = active ? 'text-brand opacity-100' : 'text-slate-300 opacity-70';
+  const isFiltered = filterMeta && state.filters[filterMeta.filterKey];
+  const filterBtn = filterMeta ? `
+    <button data-filter="${filterMeta.id}" title="Filter ${label}" class="h-5 w-5 grid place-items-center rounded hover:bg-slate-200 transition ${isFiltered ? 'text-brand bg-brand-50 ring-1 ring-brand/30' : 'text-slate-400'}">
+      <span class="material-symbols-outlined text-[12px]">filter_alt</span>
+    </button>` : '';
+  return `
+    <th class="text-left px-5 py-3 border-b border-slate-200 whitespace-nowrap">
+      <div class="inline-flex items-center gap-1.5">
+        <button data-sort="${key}" class="flex items-center gap-1 hover:text-slate-900 transition group">
+          <span>${label}</span>
+          <span class="material-symbols-outlined text-[14px] ${arrowCls} group-hover:opacity-100">${arrow}</span>
+        </button>
+        ${filterBtn}
+      </div>
+    </th>
+  `;
+}
+
+function renderMasterHeader() {
+  const isAdmin = state.user?.isAdmin;
+  $('#master-thead').innerHTML = `
+    <tr class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+      ${masterHeaderCell('doer_name',    'Doer',       isAdmin ? { id: 'doer',  filterKey: 'mDoer'   } : null)}
+      ${masterHeaderCell('department',   'Department', isAdmin ? { id: 'dept',  filterKey: 'mDept'   } : null)}
+      ${masterHeaderCell('task_name',    'Task',       { id: 'task',   filterKey: 'mTask'   })}
+      ${masterHeaderCell('freq',         'Freq',       { id: 'freq',   filterKey: 'mFreq'   })}
+      ${masterHeaderCell('planned_date', 'Planned')}
+      ${masterHeaderCell('actual_date',  'Actual')}
+      ${masterHeaderCell('delay',        'Delay')}
+      ${masterHeaderCell('status',       'Status',     { id: 'status', filterKey: 'mStatus' })}
+      <th class="text-right px-5 py-3 border-b border-slate-200">Action</th>
+    </tr>
+  `;
+  $('#master-thead').querySelectorAll('[data-sort]').forEach(b => b.addEventListener('click', () => cycleSort(b.dataset.sort)));
+  $('#master-thead').querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    openColumnFilter(b.dataset.filter, b);
+  }));
+}
+
+// Per-column filter popover
+let popoverEl = null;
+function closePopover() {
+  if (popoverEl) { popoverEl.remove(); popoverEl = null; }
+  document.removeEventListener('click', onDocClickClose);
+  document.removeEventListener('keydown', onPopoverKey);
+}
+function onDocClickClose(e) { if (popoverEl && !popoverEl.contains(e.target)) closePopover(); }
+function onPopoverKey(e) { if (e.key === 'Escape') closePopover(); }
+
+function openColumnFilter(id, anchor) {
+  if (popoverEl?.dataset.id === id) { closePopover(); return; }
+  closePopover();
+
+  const metaMap = {
+    doer:   { filterKey: 'mDoer',   label: 'Doer',       getOptions: () => state.doers.map(d => ({ value: d.name, label: d.name })) },
+    dept:   { filterKey: 'mDept',   label: 'Department', getOptions: () => [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort().map(v => ({ value: v, label: v })) },
+    task:   { filterKey: 'mTask',   label: 'Task',       getOptions: () => [...new Set(state.tasks.map(t => t.task_name))].sort().map(v => ({ value: v, label: v })) },
+    freq:   { filterKey: 'mFreq',   label: 'Frequency',  getOptions: () => [...new Set(state.master.map(r => r.freq).filter(Boolean))].sort().map(v => ({ value: v, label: v })) },
+    status: { filterKey: 'mStatus', label: 'Status',     getOptions: () => ['Today', 'Delayed', 'Done', 'Upcoming Focus'].map(v => ({ value: v, label: v })) },
+  };
+  const meta = metaMap[id];
+  if (!meta) return;
+
+  const rect = anchor.getBoundingClientRect();
+  const popover = document.createElement('div');
+  popover.dataset.id = id;
+  popover.className = 'fixed bg-white rounded-xl shadow-lift border border-slate-200 z-40 w-72 max-h-96 flex flex-col animate-pop';
+  // Position: prefer below the anchor; if too low, place above
+  const top = rect.bottom + 6;
+  const left = Math.min(rect.left, window.innerWidth - 300);
+  popover.style.top = top + 'px';
+  popover.style.left = Math.max(8, left) + 'px';
+
+  const current = state.filters[meta.filterKey];
+  const options = meta.getOptions();
+
+  popover.innerHTML = `
+    <div class="p-3 border-b border-slate-100">
+      <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">Filter by ${meta.label}</div>
+      <div class="flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1.5">
+        <span class="material-symbols-outlined text-slate-400 text-[14px]">search</span>
+        <input id="pop-search" placeholder="Search..." class="flex-1 bg-transparent outline-none text-sm" />
+      </div>
+    </div>
+    <div class="flex-1 overflow-auto p-1.5" id="pop-list">
+      ${options.length === 0 ? '<div class="px-3 py-4 text-sm text-slate-400">No values</div>' : options.map(o => `
+        <button data-value="${escapeHtml(String(o.value))}" class="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm transition ${current === o.value ? 'bg-brand-50 text-brand font-semibold' : 'text-slate-700 hover:bg-slate-50'}">
+          <span class="material-symbols-outlined text-[16px] ${current === o.value ? 'text-brand' : 'text-transparent'}">check</span>
+          <span class="flex-1 truncate">${escapeHtml(o.label)}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div class="p-2 border-t border-slate-100 flex items-center gap-2">
+      <button id="pop-clear" class="flex-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 py-1.5 rounded-lg transition">Clear</button>
+      <button id="pop-close" class="text-xs font-semibold text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition">Close</button>
+    </div>
+  `;
+  document.body.appendChild(popover);
+  popoverEl = popover;
+
+  const searchInput = popover.querySelector('#pop-search');
+  searchInput.focus();
+  searchInput.addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    popover.querySelectorAll('#pop-list [data-value]').forEach(b => {
+      b.style.display = b.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+  popover.querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => {
+    state.filters[meta.filterKey] = b.dataset.value;
+    if (meta.filterKey === 'mDoer') state.filters.mTask = '';
+    closePopover();
+    renderMaster();
+  }));
+  popover.querySelector('#pop-clear').addEventListener('click', () => {
+    state.filters[meta.filterKey] = '';
+    closePopover();
+    renderMaster();
+  });
+  popover.querySelector('#pop-close').addEventListener('click', closePopover);
+
+  setTimeout(() => {
+    document.addEventListener('click', onDocClickClose);
+    document.addEventListener('keydown', onPopoverKey);
+  }, 0);
+}
+
+// Optimistic mark done / undo
+function markDone(occurrenceKey) {
+  const row = state.master.find(r => r.occurrence_key === occurrenceKey);
+  if (!row) return;
+  const prev = { status: row.status, actual_date: row.actual_date };
+  row.status = 'Done';
+  row.actual_date = todayIso();
+  row._syncing = true;
+  renderMaster();
+
+  api('/api/master/' + encodeURIComponent(occurrenceKey) + '/done', { method: 'POST', body: '{}' })
+    .then(() => { row._syncing = false; toast('Marked done', 'success'); renderMaster(); })
+    .catch(err => {
+      row.status = prev.status; row.actual_date = prev.actual_date; row._syncing = false;
+      toast('Save failed: ' + err.message, 'error'); renderMaster();
+    });
+}
+function markUndone(occurrenceKey) {
+  // No undo endpoint yet — show toast.
+  toast('Undo not available — re-enable via Tasks edit', 'warn');
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────
+const FREQ_OPTIONS = ['D','W','M','Q','Y'];
+
+function renderTasks() {
+  // Filter bar
+  const f = state.filters;
+  const baseTasks = state.user?.isAdmin ? state.tasks : state.tasks.filter(t => t.doer_email === state.user.email);
+  const visibleDoers = state.user?.isAdmin ? state.doers : state.doers.filter(d => d.email === state.user.email);
+  const freqsInUse = [...new Set(baseTasks.map(t => t.frequency))].sort();
+
+  $('#tasks-filters').innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
+          <select id="tf-doer" class="bg-transparent outline-none text-sm w-full">
+            <option value="">All doers</option>
+            ${visibleDoers.map(d => `<option value="${escapeHtml(d.email)}" ${f.tDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="md:col-span-1">
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Task</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">search</span>
+          <input id="tf-search" type="text" autocomplete="off" placeholder="Search task name…"
+                 value="${escapeHtml(f.tSearch)}"
+                 class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
+          ${f.tSearch ? `<button id="tf-search-clear" type="button" class="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-red-700 hover:bg-red-50 transition shrink-0" title="Clear search"><span class="material-symbols-outlined text-[14px]">close</span></button>` : ''}
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Frequency</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">repeat</span>
+          <select id="tf-freq" class="bg-transparent outline-none text-sm w-full">
+            <option value="">All frequencies</option>
+            ${freqsInUse.map(q => `<option value="${escapeHtml(q)}" ${f.tFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">From (start)</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+          <input id="tf-from" type="date" value="${f.tFrom}" class="bg-transparent outline-none text-sm w-full" />
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">To (start)</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+          <input id="tf-to" type="date" value="${f.tTo}" class="bg-transparent outline-none text-sm w-full" />
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 flex items-center justify-between gap-2">
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">${activeTasksFilterCount()} filter${activeTasksFilterCount() === 1 ? '' : 's'} active</span>
+      <button id="tf-clear" ${activeTasksFilterCount() === 0 ? 'disabled' : ''} class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${activeTasksFilterCount() === 0 ? 'text-slate-400 bg-slate-50 cursor-not-allowed' : 'text-red-700 bg-red-50 hover:bg-red-100'}">
+        <span class="material-symbols-outlined text-[14px]">filter_alt_off</span>
+        Clear filters
+      </button>
+    </div>
+  `;
+
+  const wire = (id, key) => $('#' + id)?.addEventListener('change', e => { state.filters[key] = e.target.value; renderTasks(); });
+  wire('tf-doer', 'tDoer'); wire('tf-freq', 'tFreq'); wire('tf-from', 'tFrom'); wire('tf-to', 'tTo');
+
+  // Task name — live contains-search (debounced); table filters as user types
+  const searchEl = $('#tf-search');
+  if (searchEl) {
+    let timer;
+    searchEl.addEventListener('input', e => {
+      clearTimeout(timer);
+      const v = e.target.value;
+      timer = setTimeout(() => {
+        state.filters.tSearch = v;
+        renderTasks();
+        // Restore focus + caret after re-render
+        const fresh = $('#tf-search');
+        if (fresh) { fresh.focus(); fresh.setSelectionRange(v.length, v.length); }
+      }, 180);
+    });
+    searchEl.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { state.filters.tSearch = ''; renderTasks(); }
+    });
+  }
+  $('#tf-search-clear')?.addEventListener('click', () => { state.filters.tSearch = ''; renderTasks(); });
+
+  $('#tf-clear')?.addEventListener('click', () => {
+    state.filters.tDoer = ''; state.filters.tSearch = ''; state.filters.tFreq = '';
+    state.filters.tFrom = ''; state.filters.tTo = '';
+    renderTasks();
+  });
+
+  // Apply filters — task name is contains-match (case-insensitive)
+  const q = (f.tSearch || '').trim().toLowerCase();
+  const tasks = baseTasks.filter(t =>
+    (!f.tDoer || t.doer_email === f.tDoer) &&
+    (!f.tFreq || t.frequency === f.tFreq) &&
+    (!q || (t.task_name || '').toLowerCase().includes(q)) &&
+    (!f.tFrom || t.start_date >= f.tFrom) &&
+    (!f.tTo   || t.start_date <= f.tTo)
+  );
+
+  $('#tasks-count').textContent = `${fmtNum(tasks.length)} of ${fmtNum(baseTasks.length)} tasks`;
+
+  $('#tasks-tbody').innerHTML = tasks.length === 0 ? `
+    <tr><td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">filter_alt_off</span>No matching tasks.</td></tr>
+  ` : tasks.map(t => `
+    <tr class="hover:bg-slate-50 transition">
+      <td class="px-5 py-3 text-sm font-medium text-slate-900">${escapeHtml(t.task_name)}</td>
+      <td class="px-5 py-3 text-sm text-slate-600">${escapeHtml(t.doer_email)}</td>
+      <td class="px-5 py-3 text-xs text-slate-500 uppercase tracking-widest">${escapeHtml(t.frequency)}</td>
+      <td class="px-5 py-3 text-sm text-slate-600 num">${fmtDate(t.start_date)}</td>
+      <td class="px-5 py-3 text-sm text-slate-500 num">${t.end_date ? fmtDate(t.end_date) : '—'}</td>
+      <td class="px-5 py-3"><span class="badge ${t.status === 'Active' ? 'badge-Done' : 'badge-Scheduled'}">${t.status}</span></td>
+      <td class="px-5 py-3 text-right whitespace-nowrap">
+        ${state.user?.isAdmin ? `
+        <button data-edit="${escapeHtml(t.task_id)}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">edit</span>Edit</button>
+        <button data-del="${escapeHtml(t.task_id)}" class="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">delete</span></button>` : '—'}
+      </td>
+    </tr>
+  `).join('');
+
+  $$('#tasks-tbody [data-edit]').forEach(b => b.addEventListener('click', () => openTaskModal(state.tasks.find(t => t.task_id === b.dataset.edit))));
+  $$('#tasks-tbody [data-del]').forEach(b => b.addEventListener('click', () => deleteTask(b.dataset.del)));
+}
+
+$('#task-add-btn').addEventListener('click', () => openTaskModal());
+
+function openTaskModal(task) {
+  const isEdit = !!task;
+  modal(`${isEdit ? 'Edit' : 'New'} task`, `
+    <form id="task-form" class="grid grid-cols-2 gap-3">
+      <label class="col-span-2"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Task name</span>
+        <input name="task_name" required value="${escapeHtml(task?.task_name || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      ${!isEdit ? `
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer bg-brand-50/60 border border-brand-200 rounded-xl px-3 py-2.5 hover:bg-brand-50 transition">
+        <input type="checkbox" id="task-all-doers" class="h-4 w-4 rounded text-brand focus:ring-brand/30 border-brand-300" />
+        <div class="flex-1">
+          <div class="text-sm font-semibold text-slate-900">Assign to all doers</div>
+          <div class="text-[11px] text-slate-500">Creates ${state.doers.length} tasks — one per doer</div>
+        </div>
+        <span class="material-symbols-outlined text-brand text-[20px]">groups</span>
+      </label>` : ''}
+      <label id="task-doer-field"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</span>
+        <select name="doer_email" required class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
+          ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${task?.doer_email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.email)})</option>`).join('')}
+        </select>
+      </label>
+      <label><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Frequency</span>
+        <select name="frequency" required class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
+          ${FREQ_OPTIONS.map(f => `<option value="${f}" ${task?.frequency === f ? 'selected' : ''}>${f}</option>`).join('')}
+        </select>
+      </label>
+      <label><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Start</span>
+        <input name="start_date" type="date" required value="${task?.start_date || ''}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">End (optional)</span>
+        <input name="end_date" type="date" value="${task?.end_date || ''}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label class="col-span-2"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Assigned by</span>
+        <input name="assigned_by" value="${escapeHtml(task?.assigned_by || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label class="col-span-2"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Status</span>
+        <select name="status" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
+          <option value="Active"   ${task?.status !== 'Inactive' ? 'selected' : ''}>Active</option>
+          <option value="Inactive" ${task?.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+        </select>
+      </label>
+    </form>
+  `, async () => {
+    const f = new FormData($('#task-form'));
+    const body = Object.fromEntries(f.entries());
+    if (!body.end_date) body.end_date = null;
+    if (!body.assigned_by) body.assigned_by = null;
+    const assignAll = !isEdit && $('#task-all-doers')?.checked;
+    try {
+      if (isEdit) {
+        await api('/api/tasks/' + task.task_id, { method: 'PUT', body: JSON.stringify(body) });
+        toast('Task updated', 'success');
+      } else if (assignAll) {
+        toast(`Creating ${state.doers.length} tasks…`, 'info');
+        const results = await Promise.allSettled(
+          state.doers.map(d => api('/api/tasks', {
+            method: 'POST',
+            body: JSON.stringify({ ...body, doer_email: d.email }),
+          }))
+        );
+        const ok   = results.filter(r => r.status === 'fulfilled').length;
+        const fail = results.length - ok;
+        if (fail === 0)  toast(`Created ${ok} tasks for all doers`, 'success');
+        else if (ok > 0) toast(`Created ${ok} tasks, ${fail} failed`, 'warn');
+        else             { toast('All inserts failed', 'error'); return false; }
+      } else {
+        await api('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
+        toast('Task created', 'success');
+      }
+      await refreshBootstrap();
+      switchView('tasks');
+      return true;
+    } catch (err) { toast(err.message, 'error'); return false; }
+  });
+
+  // Wire "Assign to all doers" toggle
+  const allCb = $('#task-all-doers');
+  if (allCb) {
+    allCb.addEventListener('change', () => {
+      const field  = $('#task-doer-field');
+      const select = field?.querySelector('select');
+      if (allCb.checked) { field.style.display = 'none'; select.removeAttribute('required'); }
+      else               { field.style.display = '';     select.setAttribute('required', ''); }
+    });
+  }
+}
+
+async function deleteTask(id) {
+  const t = state.tasks.find(x => x.task_id === id);
+  if (!confirm(`Delete task "${t?.task_name || id}" and all its occurrences?`)) return;
+  try {
+    await api('/api/tasks/' + id, { method: 'DELETE' });
+    toast('Task deleted', 'success');
+    await refreshBootstrap();
+    switchView('tasks');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ─── SCORECARD ────────────────────────────────────────────────────────
+state.scorecard = {
+  email: '',
+  from: addDaysIso(-30),
+  to:   todayIso(),
+  data: null,
+  loading: false,
+};
+
+function lastNMonths(n) {
+  const out = [];
+  const now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const from = toIsoLocal(new Date(y, m, 1));
+    const to   = toIsoLocal(new Date(y, m + 1, 0));
+    const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    out.push({ key: `${y}-${String(m+1).padStart(2,'0')}`, label, from, to });
+  }
+  return out;
+}
+function toIsoLocal(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+
+async function loadScorecard() {
+  const s = state.scorecard;
+  if (!s.email) { s.data = null; renderScorecardBody(); return; }
+  s.loading = true;
+  renderScorecardBody();
+  try {
+    s.data = await api(`/api/scorecard/${encodeURIComponent(s.email)}?from=${s.from}&to=${s.to}`);
+  } catch (err) {
+    s.data = null;
+    toast('Failed to load scorecard: ' + err.message, 'error');
+  } finally {
+    s.loading = false;
+    renderScorecardBody();
+  }
+}
+
+function renderScorecard() {
+  renderScorecardControls();
+  loadScorecard();
+}
+
+function renderScorecardControls() {
+  const s = state.scorecard;
+  $('#sc-controls').innerHTML = `
+    <div class="md:col-span-1">
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
+        <select id="sc-doer" class="bg-transparent outline-none text-sm w-full">
+          <option value="" ${!s.email ? 'selected' : ''}>Select a doer…</option>
+          ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${s.email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} · ${escapeHtml(d.department || '—')}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Month preset</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">calendar_month</span>
+        <select id="sc-month" class="bg-transparent outline-none text-sm w-full">
+          <option value="">Custom range</option>
+          ${lastNMonths(36).map(m => `<option value="${m.from}|${m.to}" ${s.from === m.from && s.to === m.to ? 'selected' : ''}>${m.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">From</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+        <input id="sc-from" type="date" value="${s.from}" class="bg-transparent outline-none text-sm w-full" />
+      </div>
+    </div>
+    <div>
+      <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">To</label>
+      <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+        <span class="material-symbols-outlined text-slate-400 text-[16px]">event</span>
+        <input id="sc-to" type="date" value="${s.to}" class="bg-transparent outline-none text-sm w-full" />
+      </div>
+    </div>
+  `;
+
+  const presets = [
+    { label: 'Last 30 days',  from: addDaysIso(-30), to: todayIso() },
+    { label: 'Last 60 days',  from: addDaysIso(-60), to: todayIso() },
+    { label: 'Last 90 days',  from: addDaysIso(-90), to: todayIso() },
+    { label: 'This month',    from: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),     to: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)) },
+    { label: 'Last month',    from: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)), to: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 0)) },
+    { label: 'Year to date',  from: toIsoLocal(new Date(new Date().getFullYear(), 0, 1)),                          to: todayIso() },
+  ];
+  const defaultFrom = addDaysIso(-30);
+  const defaultTo   = todayIso();
+  const filtersDirty = !!s.email || s.from !== defaultFrom || s.to !== defaultTo;
+
+  $('#sc-presets').innerHTML = `
+    <span class="text-[10px] uppercase tracking-widest text-slate-400">Quick</span>
+    ${presets.map((p, i) => `<button data-preset="${i}" class="text-[11px] font-semibold text-slate-600 hover:text-brand hover:bg-brand-50 px-2.5 py-1 rounded-lg border border-slate-200 transition">${p.label}</button>`).join('')}
+    ${s.email ? `
+      <button id="sc-view-dash" class="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-lg transition text-brand bg-brand-50 hover:bg-brand-100">
+        <span class="material-symbols-outlined text-[12px]">space_dashboard</span>Open Dashboard
+        <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+      </button>` : ''}
+    <button id="sc-clear" ${filtersDirty ? '' : 'disabled'} class="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-lg transition ${filtersDirty ? 'text-red-700 bg-red-50 hover:bg-red-100' : 'text-slate-400 bg-slate-50 cursor-not-allowed'}">
+      <span class="material-symbols-outlined text-[12px]">filter_alt_off</span>Clear filters
+    </button>
+    <span class="ml-auto text-[10px] text-slate-400">From/To pickers accept any date — no limit</span>
+  `;
+  $$('#sc-presets [data-preset]').forEach(b => b.addEventListener('click', () => {
+    const p = presets[+b.dataset.preset];
+    state.scorecard.from = p.from;
+    state.scorecard.to   = p.to;
+    renderScorecardControls();
+    loadScorecard();
+  }));
+  $('#sc-clear')?.addEventListener('click', () => {
+    syncDoer('');
+    state.scorecard.from  = defaultFrom;
+    state.scorecard.to    = defaultTo;
+    state.scorecard.data  = null;
+    renderScorecardControls();
+    renderScorecardBody();
+  });
+  $('#sc-view-dash')?.addEventListener('click', () => {
+    // syncDoer already kept dashDoer in sync; just switch
+    switchView('dashboard');
+  });
+
+  $('#sc-doer').addEventListener('change', e => { syncDoer(e.target.value); loadScorecard(); });
+  $('#sc-month').addEventListener('change', e => {
+    if (!e.target.value) return;
+    const [f, t] = e.target.value.split('|');
+    state.scorecard.from = f; state.scorecard.to = t;
+    renderScorecardControls();
+    loadScorecard();
+  });
+  $('#sc-from').addEventListener('change', e => { state.scorecard.from = e.target.value; loadScorecard(); });
+  $('#sc-to').addEventListener('change',   e => { state.scorecard.to   = e.target.value; loadScorecard(); });
+}
+
+function deltaPill(curr, prev, suffix = '', invert = false) {
+  if (prev == null) return '';
+  const diff = +(curr - prev).toFixed(1);
+  if (diff === 0) return `<span class="text-[10px] text-slate-400 uppercase tracking-widest ml-1">no change</span>`;
+  const isGood = invert ? diff < 0 : diff > 0;
+  const cls = isGood ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50';
+  const arrow = diff > 0 ? 'arrow_upward' : 'arrow_downward';
+  const sign = diff > 0 ? '+' : '';
+  return `<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold ${cls} px-1.5 py-0.5 rounded-full ml-1.5"><span class="material-symbols-outlined text-[12px]">${arrow}</span>${sign}${diff}${suffix}</span>`;
+}
+
+function renderScorecardBody() {
+  const s = state.scorecard;
+  const root = $('#sc-body');
+  if (!s.email) {
+    root.innerHTML = `
+      <div class="bg-white/90 border border-slate-100 rounded-2xl p-12 text-center shadow-card">
+        <span class="material-symbols-outlined text-slate-300 text-5xl block mb-3">workspace_premium</span>
+        <h3 class="text-base font-bold text-slate-700 mb-1">Select a doer to begin</h3>
+        <p class="text-sm text-slate-500">Pick a doer from the dropdown above to view their performance scorecard.</p>
+      </div>`;
+    return;
+  }
+  if (s.loading) {
+    root.innerHTML = `
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">${Array.from({length:5}).map(()=>`<div class="skeleton h-24 rounded-2xl"></div>`).join('')}</div>
+      <div class="skeleton h-44 rounded-2xl"></div>
+      <div class="skeleton h-64 rounded-2xl"></div>
+    `;
+    return;
+  }
+  const d = s.data;
+  if (!d) { root.innerHTML = `<div class="bg-white/90 border border-red-100 rounded-2xl p-8 text-center text-sm text-red-700">Could not load scorecard.</div>`; return; }
+
+  const k = d.kpis, p = d.previousMonth;
+
+  root.innerHTML = `
+    <!-- Doer header card + RELIABILITY SCORE (Scorecard-only) -->
+    <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card flex flex-col md:flex-row md:items-center gap-5">
+      <div class="flex items-center gap-4 flex-1 min-w-0">
+        <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-brand-300 to-brand text-white text-base font-black grid place-items-center shadow-sm">${initials(d.doer.name)}</div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-xl font-bold text-slate-900 truncate">${escapeHtml(d.doer.name)}</h3>
+          <p class="text-xs text-slate-500 truncate">${escapeHtml(d.doer.department || '—')} · ${escapeHtml(d.doer.email)}</p>
+          <div class="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-400">
+            <span class="material-symbols-outlined text-[12px]">event</span>
+            <span class="num">${fmtDate(d.period.from)} → ${fmtDate(d.period.to)} · ${d.period.days} days</span>
+          </div>
+        </div>
+      </div>
+      ${renderReliabilityScore(d.kpis)}
+    </div>
+
+    <!-- KPI strip -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      ${scKpi('Total Scheduled', fmtNum(k.total),         '', 'text-slate-900',   'bg-slate-50',    'description')}
+      ${scKpi('Completed',       fmtNum(k.done),          deltaPill(k.done, p.done, ''),                            'text-brand',       'bg-brand-50',    'task_alt')}
+      ${scKpi('On-Time %',       fmtNum(k.onTimePct),     deltaPill(k.onTimePct, p.onTimePct, '%'),                 'text-emerald-700', 'bg-emerald-50',  'verified',  '%')}
+      ${scKpi('Avg Delay',       k.avgDelayDays,          deltaPill(k.avgDelayDays, p.avgDelayDays, 'd', true),     'text-amber-700',   'bg-amber-50',    'timelapse', 'd')}
+      ${scKpi('Best Streak',     fmtNum(k.bestStreak),    `<span class="text-[10px] text-slate-400 uppercase tracking-widest ml-1">cur ${k.currentStreak}</span>`, 'text-violet-700', 'bg-violet-50', 'local_fire_department')}
+    </div>
+
+    <!-- 6-month trend + heatmap -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div class="xl:col-span-1 flex flex-col gap-4">
+        <!-- Card A: 6-month trend -->
+        <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Trend</p>
+              <h4 class="text-base font-bold text-slate-900 mt-0.5">6 months · On-Time %</h4>
+            </div>
+            ${renderTrendDirection(d.trend6Months)}
+          </div>
+          ${renderTrendBars(d.trend6Months)}
+        </div>
+        <!-- Card B: Weekday pattern -->
+        <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">By Weekday</p>
+              <h4 class="text-base font-bold text-slate-900 mt-0.5">Day-of-week pattern</h4>
+            </div>
+          </div>
+          ${renderDayOfWeek(d.dailyBreakdown)}
+        </div>
+        <!-- Card C: Period composition donut — flex-1 so the column stretches to match the heatmap card -->
+        <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card flex-1 flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Composition</p>
+              <h4 class="text-base font-bold text-slate-900 mt-0.5">On-time · Late · Pending</h4>
+            </div>
+          </div>
+          <div class="flex-1 flex flex-col justify-center">
+            ${renderPeriodDonut(d.kpis)}
+          </div>
+        </div>
+      </div>
+
+      <div class="xl:col-span-2 bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Daily</p>
+            <h4 class="text-base font-bold text-slate-900 mt-0.5">Heatmap · click a day to drill in</h4>
+          </div>
+          <div class="flex items-center gap-3 text-[10px] uppercase tracking-widest text-slate-400">
+            <span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-emerald-500"></span>On-time</span>
+            <span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-amber-400"></span>Mixed</span>
+            <span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-red-500"></span>Delayed</span>
+            <span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-slate-200"></span>None</span>
+          </div>
+        </div>
+        ${renderHeatmap(d.dailyBreakdown)}
+      </div>
+    </div>
+
+    <!-- Strengths & weaknesses (Scorecard-only — actionable per-task insights) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white/90 backdrop-blur-sm border border-emerald-100 rounded-2xl p-5 shadow-card">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-emerald-700">Strengths</p>
+            <h4 class="text-base font-bold text-slate-900 mt-0.5">Best 3 tasks · highest on-time %</h4>
+          </div>
+          <span class="material-symbols-outlined text-emerald-500 text-[24px]">trending_up</span>
+        </div>
+        ${(d.bestTasks || []).length === 0 ? '<div class="py-6 text-center text-sm text-slate-400">Not enough completion data yet (need ≥3 occurrences per task)</div>' : (d.bestTasks || []).map((t, i) => `
+          <div class="flex items-center gap-3 py-2 ${i ? 'border-t border-slate-100' : ''}">
+            <div class="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-700 grid place-items-center text-xs font-bold num">#${i+1}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-900 truncate">${escapeHtml(t.task_name || '—')}</div>
+              <div class="text-[11px] text-slate-500"><span class="num">${t.count}</span> occurrences · <span class="num font-bold text-emerald-700">${t.onTimePct}%</span> on-time</div>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <div class="bg-white/90 backdrop-blur-sm border border-red-100 rounded-2xl p-5 shadow-card">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-red-700">Risk areas</p>
+            <h4 class="text-base font-bold text-slate-900 mt-0.5">Worst 3 tasks · lowest on-time %</h4>
+          </div>
+          <span class="material-symbols-outlined text-red-500 text-[24px]">trending_down</span>
+        </div>
+        ${(d.worstTasks || []).length === 0 ? '<div class="py-6 text-center text-sm text-slate-400">No risk areas identified</div>' : (d.worstTasks || []).map((t, i) => `
+          <div class="flex items-center gap-3 py-2 ${i ? 'border-t border-slate-100' : ''}">
+            <div class="h-7 w-7 rounded-lg bg-red-50 text-red-700 grid place-items-center text-xs font-bold num">#${i+1}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-900 truncate">${escapeHtml(t.task_name || '—')}</div>
+              <div class="text-[11px] text-slate-500"><span class="num">${t.count}</span> occurrences · <span class="num font-bold text-red-700">${t.onTimePct}%</span> on-time</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Freq + Top tasks -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">By Frequency</p>
+        <h4 class="text-base font-bold text-slate-900 mt-0.5 mb-4">Completion breakdown</h4>
+        ${d.freqBreakdown.length === 0 ? '<div class="py-8 text-center text-sm text-slate-400">No data</div>' : d.freqBreakdown.map(f => {
+          const otW = f.total ? (f.onTime / f.total) * 100 : 0;
+          const lW  = f.total ? (f.late   / f.total) * 100 : 0;
+          const opW = f.total ? ((f.total - f.done) / f.total) * 100 : 0;
+          return `
+            <div class="mb-3 last:mb-0">
+              <div class="flex items-center justify-between text-sm mb-1">
+                <span class="font-semibold text-slate-900">Freq ${escapeHtml(f.freq)}</span>
+                <span class="text-xs text-slate-500 num">${fmtNum(f.onTime)} on-time · ${fmtNum(f.late)} late · ${fmtNum(f.total - f.done)} open · <span class="text-slate-700 font-semibold">${fmtNum(f.total)} total</span></span>
+              </div>
+              <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                <div style="width:${otW}%; background:#10b981"></div>
+                <div style="width:${lW}%; background:#ef4444"></div>
+                <div style="width:${opW}%; background:#cbd5e1"></div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-5 shadow-card">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Top tasks</p>
+        <h4 class="text-base font-bold text-slate-900 mt-0.5 mb-4">Most frequent in this period</h4>
+        ${d.topTasks.length === 0 ? '<div class="py-8 text-center text-sm text-slate-400">No data</div>' : d.topTasks.map((t, i) => `
+          <div class="flex items-center gap-3 py-2 ${i ? 'border-t border-slate-100' : ''}">
+            <div class="h-7 w-7 rounded-lg bg-slate-50 text-slate-500 grid place-items-center text-xs font-bold num">#${i+1}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-900 truncate">${escapeHtml(t.task_name || '—')}</div>
+              <div class="text-[11px] text-slate-500"><span class="num">${t.count}</span> occurrences · <span class="num font-semibold ${t.donePct >= 80 ? 'text-emerald-700' : t.donePct >= 50 ? 'text-amber-700' : 'text-red-700'}">${t.donePct}%</span> done</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // Wire heatmap day clicks → master view filtered to this doer + day.
+  // If the day is outside the currently loaded master window, fetch those
+  // rows from the backend (master+archive UNION) and merge into state.master.
+  $$('#sc-body [data-heatmap-day]').forEach(c => c.addEventListener('click', async () => {
+    const day = c.dataset.heatmapDay;
+    const email = state.scorecard.email;
+    const already = state.master.some(r => r.doer_email === email && r.planned_date === day);
+    if (!already) {
+      try {
+        const res = await api(`/api/master/range?email=${encodeURIComponent(email)}&from=${day}&to=${day}`);
+        const existing = new Set(state.master.map(r => r.occurrence_key));
+        for (const r of (res.rows || [])) {
+          if (!existing.has(r.occurrence_key)) {
+            state.master.push(r);
+            existing.add(r.occurrence_key);
+          }
+        }
+      } catch (err) {
+        toast('Failed to load rows for ' + day + ': ' + err.message, 'error');
+        return;
+      }
+    }
+    state.filters.mDoer = email;
+    state.filters.mFrom = day;
+    state.filters.mTo   = day;
+    state.filters.mStatus = ''; state.filters.mTask = ''; state.filters.mFreq = ''; state.filters.mDept = '';
+    switchView('master');
+  }));
+}
+
+function renderReliabilityScore(k) {
+  const score = k.reliability ?? 0;
+  const grade = score >= 90 ? { label: 'Excellent', icon: 'verified',          color: 'text-emerald-700', ring: 'ring-emerald-300', glow: 'from-emerald-100 to-emerald-50', bar: '#10b981' }
+              : score >= 75 ? { label: 'Strong',    icon: 'thumb_up',          color: 'text-emerald-700', ring: 'ring-emerald-200', glow: 'from-emerald-50 to-white',     bar: '#34d399' }
+              : score >= 60 ? { label: 'Steady',    icon: 'trending_flat',     color: 'text-amber-700',   ring: 'ring-amber-200',   glow: 'from-amber-50 to-white',       bar: '#f59e0b' }
+              : score >= 40 ? { label: 'Watch',     icon: 'warning',           color: 'text-amber-700',   ring: 'ring-amber-200',   glow: 'from-amber-50 to-white',       bar: '#fb923c' }
+              :               { label: 'At risk',   icon: 'priority_high',     color: 'text-red-700',     ring: 'ring-red-200',     glow: 'from-red-50 to-white',         bar: '#ef4444' };
+  const gradeTooltip = `Grade scale:\nExcellent (90-100) — top performer\nStrong (75-89) — consistently good\nSteady (60-74) — solid, room to grow\nWatch (40-59) — warning zone, needs attention\nAt risk (0-39) — critical underperformance`;
+
+  // Component contributions (weights match backend formula)
+  const onTimeComp = Math.round(0.5 * (k.onTimePct || 0));
+  const compComp   = Math.round(0.3 * (k.completionPct || 0));
+  const streakComp = Math.round(0.2 * Math.min(100, ((k.bestStreak || 0) / 30) * 100));
+
+  return `
+    <div class="bg-gradient-to-br ${grade.glow} border border-slate-100 rounded-xl px-5 py-3 flex items-center gap-4 shrink-0">
+      <div class="text-center">
+        <div class="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Reliability</div>
+        <div class="flex items-baseline gap-0.5">
+          <span class="text-4xl font-black num ${grade.color} leading-none tracking-tighter">${score}</span>
+          <span class="text-xs text-slate-400">/100</span>
+        </div>
+        <div title="${gradeTooltip}" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${grade.color} mt-1 px-2 py-0.5 rounded-full bg-white/70 ring-1 ${grade.ring} cursor-help select-none">
+          <span class="material-symbols-outlined text-[12px]">${grade.icon}</span>
+          ${grade.label}
+        </div>
+      </div>
+      <div class="hidden md:block w-px h-14 bg-slate-200"></div>
+      <div class="hidden md:flex flex-col gap-1 text-[11px]">
+        <div class="flex items-center gap-2 w-44"><span class="text-slate-500 w-20">On-time</span><div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full" style="width:${onTimeComp*2}%; background:${grade.bar}"></div></div><span class="num text-slate-700 font-semibold w-6 text-right">${onTimeComp}</span></div>
+        <div class="flex items-center gap-2 w-44"><span class="text-slate-500 w-20">Throughput</span><div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full" style="width:${compComp*3.33}%; background:${grade.bar}"></div></div><span class="num text-slate-700 font-semibold w-6 text-right">${compComp}</span></div>
+        <div class="flex items-center gap-2 w-44"><span class="text-slate-500 w-20">Consistency</span><div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full" style="width:${streakComp*5}%; background:${grade.bar}"></div></div><span class="num text-slate-700 font-semibold w-6 text-right">${streakComp}</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function scKpi(label, value, deltaHtml = '', accent, iconBg, icon, suffix = '') {
+  return `
+    <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-4 shadow-card relative overflow-hidden">
+      <div class="flex items-center justify-between">
+        <div class="h-8 w-8 rounded-xl ${iconBg} grid place-items-center"><span class="material-symbols-outlined text-[16px] ${accent}">${icon}</span></div>
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">${label}</p>
+      </div>
+      <div class="mt-3 flex items-baseline gap-0.5">
+        <span class="text-3xl font-extrabold num ${accent} leading-none tracking-tighter">${value}</span>
+        <span class="text-base font-bold ${accent}">${suffix}</span>
+      </div>
+      <div class="mt-1.5 h-5">${deltaHtml}</div>
+    </div>
+  `;
+}
+
+function renderTrendBars(months) {
+  const max = Math.max(1, ...months.map(m => m.onTimePct));
+  return `
+    <div class="h-40 flex items-end gap-2">
+      ${months.map(m => {
+        const h = Math.max(4, (m.onTimePct / max) * 100);
+        const color = m.onTimePct >= 80 ? 'from-emerald-300 to-emerald-600'
+                     : m.onTimePct >= 50 ? 'from-amber-300 to-amber-600'
+                     : m.onTimePct > 0   ? 'from-red-300 to-red-600'
+                     : 'from-slate-200 to-slate-300';
+        const pctColor = m.onTimePct >= 80 ? 'text-emerald-700'
+                       : m.onTimePct >= 50 ? 'text-amber-700'
+                       : m.onTimePct > 0   ? 'text-red-700' : 'text-slate-400';
+        return `
+          <div class="flex-1 flex flex-col items-center gap-1.5 group cursor-default">
+            <div class="text-[11px] font-bold num ${pctColor}">${m.onTimePct}%</div>
+            <div class="relative w-full flex-1 flex items-end">
+              <div class="w-full rounded-md bg-gradient-to-t ${color} transition-all duration-500" style="height:${h}%"></div>
+            </div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">${escapeHtml(m.label)}</div>
+            <div class="text-[10px] text-slate-400 num">${fmtNum(m.done)}</div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTrendDirection(months) {
+  const nonEmpty = months.filter(m => m.total > 0);
+  if (nonEmpty.length < 2) return '';
+  const half = Math.max(1, Math.floor(nonEmpty.length / 2));
+  const earlyAvg = nonEmpty.slice(0, half).reduce((s, m) => s + m.onTimePct, 0) / half;
+  const lateAvg  = nonEmpty.slice(-half).reduce((s, m) => s + m.onTimePct, 0) / half;
+  const delta = +(lateAvg - earlyAvg).toFixed(1);
+  const cls    = delta > 2 ? 'text-emerald-700 bg-emerald-50' : delta < -2 ? 'text-red-700 bg-red-50' : 'text-slate-600 bg-slate-100';
+  const icon   = delta > 2 ? 'trending_up' : delta < -2 ? 'trending_down' : 'trending_flat';
+  const label  = delta > 2 ? 'Improving' : delta < -2 ? 'Declining' : 'Steady';
+  return `<span class="inline-flex items-center gap-1 text-[11px] font-semibold ${cls} px-2 py-0.5 rounded-full whitespace-nowrap"><span class="material-symbols-outlined text-[14px]">${icon}</span>${label} ${delta > 0 ? '+' : ''}${delta}%</span>`;
+}
+
+function renderPeriodDonut(kpis) {
+  const onTime  = kpis.onTime || 0;
+  const late    = Math.max(0, (kpis.done || 0) - onTime);
+  const pending = Math.max(0, (kpis.total || 0) - (kpis.done || 0));
+  const slices = [
+    { label: 'On-time', value: onTime,  color: '#10b981' },
+    { label: 'Late',    value: late,    color: '#ef4444' },
+    { label: 'Pending', value: pending, color: '#cbd5e1' },
+  ];
+  const total = kpis.total || 0;
+  if (total === 0) {
+    return `<div class="py-6 text-center text-sm text-slate-400">No tasks in this period</div>`;
+  }
+  let cursor = 0;
+  const stops = slices.map(s => {
+    const start = (cursor / total) * 100;
+    cursor += s.value;
+    const end = (cursor / total) * 100;
+    return `${s.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+  }).join(', ');
+
+  const donePct = total ? Math.round((kpis.done / total) * 100) : 0;
+  const donePctColor = donePct >= 80 ? 'text-emerald-700' : donePct >= 50 ? 'text-amber-700' : donePct > 0 ? 'text-red-700' : 'text-slate-400';
+
+  return `
+    <div class="flex items-center gap-4">
+      <div class="relative shrink-0 w-28 h-28">
+        <div class="absolute inset-0 rounded-full transition-all duration-500" style="background: conic-gradient(${stops})"></div>
+        <div class="absolute inset-3 rounded-full bg-white grid place-items-center shadow-inner">
+          <div class="text-center">
+            <div class="text-[9px] uppercase tracking-widest text-slate-400">Done</div>
+            <div class="text-xl font-extrabold ${donePctColor} num leading-none">${donePct}<span class="text-sm">%</span></div>
+            <div class="text-[9px] uppercase tracking-widest text-slate-400 mt-0.5">of ${fmtNum(total)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 space-y-2">
+        ${slices.map(s => {
+          const pct = total ? Math.round((s.value / total) * 100) : 0;
+          return `
+            <div class="flex items-center gap-2 group">
+              <span class="h-2.5 w-2.5 rounded-sm shrink-0" style="background:${s.color}"></span>
+              <span class="flex-1 text-xs text-slate-600">${s.label}</span>
+              <span class="text-xs font-bold text-slate-900 num">${fmtNum(s.value)}</span>
+              <span class="text-[10px] uppercase tracking-widest text-slate-400 num w-9 text-right">${pct}%</span>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderDayOfWeek(daily) {
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const buckets = labels.map(l => ({ label: l, total: 0, done: 0, onTime: 0, delayed: 0 }));
+  for (const d of daily) {
+    const dow = (new Date(d.date).getDay() + 6) % 7; // Monday=0
+    buckets[dow].total   += d.total;
+    buckets[dow].done    += d.done;
+    buckets[dow].onTime  += d.onTime;
+    buckets[dow].delayed += d.delayed;
+  }
+  if (buckets.every(b => b.total === 0)) {
+    return `<div class="py-6 text-center text-sm text-slate-400">No data in this period</div>`;
+  }
+  const maxTotal = Math.max(1, ...buckets.map(b => b.total));
+  return `
+    <div class="space-y-1.5">
+      ${buckets.map(b => {
+        const otPct = b.done ? Math.round((b.onTime / b.done) * 100) : 0;
+        const w = (b.total / maxTotal) * 100;
+        const color = b.total === 0 ? '#cbd5e1' : otPct >= 80 ? '#10b981' : otPct >= 50 ? '#f59e0b' : otPct > 0 ? '#ef4444' : '#94a3b8';
+        const pctTxt = b.total === 0 ? '—' : b.done === 0 ? '0%' : otPct + '%';
+        const pctClr = b.total === 0 ? 'text-slate-400' : otPct >= 80 ? 'text-emerald-700' : otPct >= 50 ? 'text-amber-700' : otPct > 0 ? 'text-red-700' : 'text-slate-500';
+        return `
+          <div class="flex items-center gap-2.5">
+            <div class="text-[10px] uppercase tracking-widest text-slate-500 w-9 font-semibold">${b.label}</div>
+            <div class="flex-1 h-5 bg-slate-100 rounded-md overflow-hidden shadow-inner">
+              <div class="h-full transition-all duration-500" style="width:${w}%; background:${color}"></div>
+            </div>
+            <div class="text-[11px] num text-slate-500 w-9 text-right">${fmtNum(b.total)}</div>
+            <div class="text-[11px] num font-bold w-9 text-right ${pctClr}">${pctTxt}</div>
+          </div>`;
+      }).join('')}
+    </div>
+    <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-400">
+      <span>Day</span><span>Volume</span><span>On-time %</span>
+    </div>
+  `;
+}
+
+function renderHeatmap(days) {
+  if (!days.length) return '<div class="py-10 text-center text-sm text-slate-400">No days in this period.</div>';
+  // Layout as weeks: pad to start on Monday
+  const first = new Date(days[0].date);
+  const startWd = (first.getDay() + 6) % 7; // 0 = Mon
+  const cells = Array.from({ length: startWd }).map(() => null).concat(days);
+  return `
+    <div class="grid grid-cols-7 gap-1.5 text-center">
+      ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<div class="text-[9px] uppercase tracking-widest text-slate-400">${d}</div>`).join('')}
+      ${cells.map(c => {
+        if (!c) return `<div class="aspect-square"></div>`;
+        let color = 'bg-slate-100';
+        if (c.total > 0) {
+          if (c.delayed === 0)              color = 'bg-emerald-500';
+          else if (c.delayed < c.total)     color = 'bg-amber-400';
+          else                              color = 'bg-red-500';
+        }
+        const d = new Date(c.date);
+        const day = d.getDate();
+        const cls = c.total > 0 ? 'cursor-pointer hover:ring-2 hover:ring-brand/40' : 'opacity-50';
+        return `
+          <div data-heatmap-day="${c.date}" title="${c.date} · ${c.total} planned · ${c.done} done · ${c.delayed} delayed" class="aspect-square rounded-md ${color} ${cls} relative transition group">
+            <span class="absolute inset-0 grid place-items-center text-[10px] font-bold ${c.total > 0 ? 'text-white' : 'text-slate-400'}">${day}</span>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// CSV Export
+$('#sc-export')?.addEventListener('click', () => {
+  const d = state.scorecard.data;
+  if (!d) { toast('No scorecard data loaded', 'warn'); return; }
+  const lines = [
+    `Doer,${d.doer.name}`,
+    `Email,${d.doer.email}`,
+    `Department,${d.doer.department || ''}`,
+    `Period,${d.period.from} to ${d.period.to}`,
+    '',
+    'KPI,Value',
+    `Total scheduled,${d.kpis.total}`,
+    `Completed,${d.kpis.done}`,
+    `Delayed,${d.kpis.delayed}`,
+    `On-time,${d.kpis.onTime}`,
+    `On-time %,${d.kpis.onTimePct}`,
+    `Avg delay (days),${d.kpis.avgDelayDays}`,
+    `Best streak,${d.kpis.bestStreak}`,
+    `Current streak,${d.kpis.currentStreak}`,
+    '',
+    'Previous-period comparison',
+    `Prev On-time %,${d.previousMonth.onTimePct}`,
+    `Prev Avg delay,${d.previousMonth.avgDelayDays}`,
+    `Prev Completed,${d.previousMonth.done}`,
+    '',
+    'Date,Total,Done,On-time,Delayed',
+    ...d.dailyBreakdown.map(x => `${x.date},${x.total},${x.done},${x.onTime},${x.delayed}`),
+    '',
+    'Frequency,Total,Done,On-time,Late',
+    ...d.freqBreakdown.map(f => `${f.freq},${f.total},${f.done},${f.onTime},${f.late}`),
+    '',
+    'Top tasks',
+    'Task,Count,Done,On-time,Done %',
+    ...d.topTasks.map(t => `"${(t.task_name||'').replace(/"/g, '""')}",${t.count},${t.done},${t.onTime},${t.donePct}`),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `scorecard-${d.doer.email}-${d.period.from}_to_${d.period.to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV downloaded', 'success');
+});
+
+$('#sc-print')?.addEventListener('click', () => window.print());
+
+// ─── DOERS ────────────────────────────────────────────────────────────
+function renderDoers() {
+  const f = state.filters;
+  const q = (f.dSearch || '').trim().toLowerCase();
+
+  // Search bar
+  $('#doers-filters').innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div>
+        <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Search</label>
+        <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
+          <span class="material-symbols-outlined text-slate-400 text-[16px]">search</span>
+          <input id="df-search" type="text" autocomplete="off" placeholder="Search by name, email or department…"
+                 value="${escapeHtml(f.dSearch)}"
+                 class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
+          ${f.dSearch ? `<button id="df-search-clear" type="button" class="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-red-700 hover:bg-red-50 transition shrink-0" title="Clear"><span class="material-symbols-outlined text-[14px]">close</span></button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  const searchEl = $('#df-search');
+  if (searchEl) {
+    let timer;
+    searchEl.addEventListener('input', e => {
+      clearTimeout(timer);
+      const v = e.target.value;
+      timer = setTimeout(() => {
+        state.filters.dSearch = v;
+        renderDoers();
+        const fresh = $('#df-search');
+        if (fresh) { fresh.focus(); fresh.setSelectionRange(v.length, v.length); }
+      }, 180);
+    });
+    searchEl.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { state.filters.dSearch = ''; renderDoers(); }
+    });
+  }
+  $('#df-search-clear')?.addEventListener('click', () => { state.filters.dSearch = ''; renderDoers(); });
+
+  // Apply filter
+  const doers = state.doers.filter(d => !q
+    || (d.name || '').toLowerCase().includes(q)
+    || (d.email || '').toLowerCase().includes(q)
+    || (d.department || '').toLowerCase().includes(q));
+
+  $('#doers-count').textContent = `${fmtNum(doers.length)} of ${fmtNum(state.doers.length)} doers`;
+
+  $('#doers-tbody').innerHTML = doers.length === 0 ? `
+    <tr><td colspan="4" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">filter_alt_off</span>${state.doers.length === 0 ? 'No doers yet.' : 'No matching doers.'}</td></tr>
+  ` : doers.map(d => `
+    <tr class="hover:bg-slate-50 transition">
+      <td class="px-5 py-3 text-sm font-medium text-slate-900">
+        <div class="flex items-center gap-2.5">
+          <div class="h-7 w-7 rounded-full bg-gradient-to-br from-brand-300 to-brand text-white text-[10px] font-semibold grid place-items-center">${initials(d.name)}</div>
+          <span>${escapeHtml(d.name)}</span>
+        </div>
+      </td>
+      <td class="px-5 py-3 text-sm text-slate-600">${escapeHtml(d.department || '—')}</td>
+      <td class="px-5 py-3 text-sm text-slate-500">${escapeHtml(d.email)}</td>
+      <td class="px-5 py-3 text-right whitespace-nowrap">
+        <button data-edit="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">edit</span>Edit</button>
+        <button data-del="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">delete</span></button>
+      </td>
+    </tr>
+  `).join('');
+
+  $$('#doers-tbody [data-edit]').forEach(b => b.addEventListener('click', () => openDoerModal(state.doers.find(x => String(x.id) === b.dataset.edit))));
+  $$('#doers-tbody [data-del]').forEach(b => b.addEventListener('click', () => deleteDoer(b.dataset.del)));
+}
+
+function activeDoersFilterCount() { return state.filters.dSearch ? 1 : 0; }
+
+$('#doer-add-btn').addEventListener('click', () => openDoerModal());
+
+function openDoerModal(doer) {
+  const isEdit = !!doer;
+  modal(`${isEdit ? 'Edit' : 'New'} doer`, `
+    <form id="doer-form" class="space-y-3">
+      <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Name</span>
+        <input name="name" required value="${escapeHtml(doer?.name || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Department</span>
+        <input name="department" value="${escapeHtml(doer?.department || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Email</span>
+        <input name="email" type="email" required value="${escapeHtml(doer?.email || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+    </form>
+  `, async () => {
+    const f = new FormData($('#doer-form'));
+    const body = Object.fromEntries(f.entries());
+    try {
+      if (isEdit) await api('/api/doers/' + doer.id, { method: 'PUT', body: JSON.stringify(body) });
+      else        await api('/api/doers',            { method: 'POST', body: JSON.stringify(body) });
+      toast(isEdit ? 'Doer updated' : 'Doer created', 'success');
+      await refreshBootstrap();
+      switchView('doers');
+      return true;
+    } catch (err) { toast(err.message, 'error'); return false; }
+  });
+}
+
+async function deleteDoer(id) {
+  const d = state.doers.find(x => String(x.id) === String(id));
+  if (!confirm(`Delete ${d?.name || 'doer'}?`)) return;
+  try {
+    await api('/api/doers/' + id, { method: 'DELETE' });
+    toast('Doer deleted', 'success');
+    await refreshBootstrap();
+    switchView('doers');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ─── Modal helper ─────────────────────────────────────────────────────
+function modal(title, body, onSubmit) {
+  const root = $('#modal-root');
+  root.innerHTML = `
+    <div class="fixed inset-0 z-40 modal-bg flex items-center justify-center p-4" id="modal-backdrop">
+      <div class="bg-white rounded-[20px] shadow-lift w-full max-w-lg overflow-hidden animate-pop">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900">${escapeHtml(title)}</h3>
+          <button id="modal-close" class="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 text-slate-500 transition"><span class="material-symbols-outlined text-[18px]">close</span></button>
+        </div>
+        <div class="px-6 py-5">${body}</div>
+        <div class="px-6 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button id="modal-cancel" class="text-sm font-semibold text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-lg transition">Cancel</button>
+          <button id="modal-save"   class="text-sm font-semibold text-white bg-brand hover:bg-brand-700 px-4 py-2 rounded-lg transition shadow-sm">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const close = () => root.innerHTML = '';
+  $('#modal-close').onclick = close;
+  $('#modal-cancel').onclick = close;
+  $('#modal-backdrop').addEventListener('click', e => { if (e.target.id === 'modal-backdrop') close(); });
+  $('#modal-save').onclick = async () => {
+    const ok = await onSubmit();
+    if (ok !== false) close();
+  };
+}
+
+// ─── Sync / refresh ───────────────────────────────────────────────────
+async function refreshBootstrap() {
+  const boot = await api('/api/bootstrap');
+  state.user = boot.user;
+  state.doers = boot.doers || [];
+  state.tasks = boot.tasks || [];
+  state.master = boot.masterWindow?.rows || [];
+}
+
+async function syncAll() {
+  const icon = $('#sync-icon');
+  icon.style.transition = 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+  icon.style.transform = 'rotate(360deg)';
+  try {
+    await refreshBootstrap();
+    switchView(state.activeView);
+    toast('Synced', 'success');
+  } catch (err) {
+    toast('Sync failed: ' + err.message, 'error');
+  } finally {
+    setTimeout(() => { icon.style.transform = ''; }, 800);
+  }
+}
+$('#sync-btn').addEventListener('click', syncAll);
+
+</script>
+</body>
+</html>

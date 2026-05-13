@@ -1,0 +1,6 @@
+﻿node_modules/
+*.log
+.env
+.DS_Store
+checklist-migration/data/*.csv
+!checklist-migration/data/.gitkeep

@@ -1,0 +1,19 @@
+{
+  "name": "checklist-migration",
+  "version": "1.0.0",
+  "description": "Migration scripts for checklist app: Google Sheets to Supabase/Postgres",
+  "private": true,
+  "scripts": {
+    "import": "node scripts/import-from-csv.js",
+    "provision-users": "node scripts/provision-users.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
