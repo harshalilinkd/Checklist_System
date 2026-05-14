@@ -61,6 +61,7 @@ create table if not exists archive (
   actual_date     date,
   freq            text,
   status          text not null,
+  task_name       text,  -- denormalized so the name survives task deletion
   created_at      timestamptz not null,
   updated_at      timestamptz not null,
   archived_at     timestamptz not null default now()

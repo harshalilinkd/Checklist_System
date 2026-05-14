@@ -107,11 +107,41 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
 
 router.delete('/:id', requireAdmin, async (req, res, next) => {
   try {
-    const r = await query('delete from tasks where task_id = $1 returning task_id', [req.params.id]);
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Task not found', code: 404 });
+    // History-preserving delete:
+    //   1. Move past Done occurrences to `archive` (preserves doer history,
+    //      scorecard stats, audit trail). Archive has no FK to tasks so they
+    //      survive the task removal.
+    //   2. Delete the task. ON DELETE CASCADE auto-removes any remaining
+    //      master_checklist rows (future / not-done occurrences).
+    const result = await withTx(async (client) => {
+      // Capture task_name first so it survives the task row's deletion.
+      const taskRow = await client.query('select task_name from tasks where task_id = $1', [req.params.id]);
+      const taskName = taskRow.rows[0]?.task_name || null;
+      const archived = await client.query(`
+        with moved as (
+          delete from master_checklist
+           where task_id = $1 and status = 'Done'
+          returning occurrence_key, task_id, doer_email, planned_date,
+                    actual_date, freq, status, created_at, updated_at
+        )
+        insert into archive (occurrence_key, task_id, doer_email, planned_date,
+                             actual_date, freq, status, created_at, updated_at, task_name)
+        select m.*, $2 from moved m
+        returning id
+      `, [req.params.id, taskName]);
+
+      const r = await client.query(
+        'delete from tasks where task_id = $1 returning task_id',
+        [req.params.id]
+      );
+      if (r.rowCount === 0) return null;
+      return { task_id: r.rows[0].task_id, archivedDone: archived.rowCount };
+    });
+
+    if (!result) return res.status(404).json({ error: 'Task not found', code: 404 });
     invalidateTasks();
     invalidateMaster();
-    res.json({ deleted: r.rows[0].task_id });
+    res.json({ deleted: result.task_id, archivedDone: result.archivedDone });
   } catch (e) { next(e); }
 });
 

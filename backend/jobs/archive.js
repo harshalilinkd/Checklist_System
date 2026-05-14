@@ -6,6 +6,8 @@ const { invalidateMaster } = require('../cache');
 async function runArchiveJob() {
   const start = Date.now();
   const result = await withTx(async (client) => {
+    // Capture task_name from tasks table (denormalized into archive so the
+    // name survives even if the task is later deleted).
     const r = await client.query(`
       with moved as (
         delete from master_checklist
@@ -15,8 +17,10 @@ async function runArchiveJob() {
                   actual_date, freq, status, created_at, updated_at
       )
       insert into archive (occurrence_key, task_id, doer_email, planned_date,
-                           actual_date, freq, status, created_at, updated_at)
-      select * from moved
+                           actual_date, freq, status, created_at, updated_at, task_name)
+      select m.*, t.task_name
+        from moved m
+        left join tasks t on t.task_id = m.task_id
       returning id
     `, [APP_TZ]);
     return r.rowCount;
