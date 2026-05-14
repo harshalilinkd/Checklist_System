@@ -1696,7 +1696,9 @@ function renderMaster() {
             ? (state.user?.isAdmin
                 ? `<button data-action="undone" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">undo</span>Undo</button>`
                 : `<span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><span class="material-symbols-outlined text-[14px]">check_circle</span>Completed</span>`)
-            : `<button data-action="done" class="inline-flex items-center gap-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-sm"><span class="material-symbols-outlined text-[14px]">check</span>Done</button>`}
+            : (r.status === 'Upcoming Focus' || r.status === 'Scheduled'
+                ? `<span class="text-[11px] uppercase tracking-widest text-slate-400">Not due yet</span>`
+                : `<button data-action="done" class="inline-flex items-center gap-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition shadow-sm"><span class="material-symbols-outlined text-[14px]">check</span>Done</button>`)}
         </td>
       </tr>
     `;
