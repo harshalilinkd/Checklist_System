@@ -1055,8 +1055,10 @@ function activeTasksFilterCount() {
   return ['tDoer', 'tDept', 'tSearch', 'tFreq', 'tFrom', 'tTo'].filter(k => f[k]).length;
 }
 
-// Sync helper: Dashboard's dashDoer and Scorecard's email stay in lockstep,
-// so picking a doer in one view auto-selects them in the other.
+// One-way sync from Dashboard → Scorecard: picking a doer on Dashboard
+// also pre-selects them in Scorecard. Scorecard → Dashboard is NOT synced
+// (the user wants those two filters independent); the "Open Dashboard →"
+// button is the explicit propagation if they want it.
 function syncDoer(email) {
   state.filters.dashDoer = email || '';
   state.scorecard.email  = email || '';
@@ -2320,7 +2322,7 @@ function renderScorecardControls() {
     loadScorecard();
   }));
   $('#sc-clear')?.addEventListener('click', () => {
-    syncDoer('');
+    state.scorecard.email = '';
     state.scorecard.from  = defaultFrom;
     state.scorecard.to    = defaultTo;
     state.scorecard.data  = null;
@@ -2328,11 +2330,13 @@ function renderScorecardControls() {
     renderScorecardBody();
   });
   $('#sc-view-dash')?.addEventListener('click', () => {
-    // syncDoer already kept dashDoer in sync; just switch
+    // Explicit "Open Dashboard for this doer" action — propagate the
+    // scorecard's selection to the dashboard filter on click.
+    state.filters.dashDoer = state.scorecard.email || '';
     switchView('dashboard');
   });
 
-  $('#sc-doer').addEventListener('change', e => { syncDoer(e.target.value); loadScorecard(); });
+  $('#sc-doer').addEventListener('change', e => { state.scorecard.email = e.target.value; loadScorecard(); });
   $('#sc-month').addEventListener('change', e => {
     if (!e.target.value) return;
     const [f, t] = e.target.value.split('|');
