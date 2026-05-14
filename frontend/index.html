@@ -772,6 +772,11 @@ async function afterLogin() {
 // Restore session on reload — or, if no session, show Google One Tap prompt
 (async () => {
   const { data } = await supabase.auth.getSession();
+  // After OAuth redirect, Supabase leaves a `#` (or full `#access_token=…`)
+  // in the URL once the session is stored. Clean it up cosmetically.
+  if (window.location.hash) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
   if (data.session) {
     state.session = data.session;
     await afterLogin();
