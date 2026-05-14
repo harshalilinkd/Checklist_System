@@ -1959,7 +1959,7 @@ function renderTasks() {
           </select>
         </div>
       </div>` : ''}
-      <div>
+      <div class="relative" id="tf-search-wrap">
         <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Task</label>
         <div class="mt-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-brand/20">
           <span class="material-symbols-outlined text-slate-400 text-[16px]">search</span>
@@ -1967,6 +1967,12 @@ function renderTasks() {
                  value="${escapeHtml(f.tSearch)}"
                  class="bg-transparent outline-none text-sm w-full placeholder:text-slate-400" />
           ${f.tSearch ? `<button id="tf-search-clear" type="button" class="h-5 w-5 grid place-items-center rounded text-slate-400 hover:text-red-700 hover:bg-red-50 transition shrink-0" title="Clear search"><span class="material-symbols-outlined text-[14px]">close</span></button>` : ''}
+          <span class="material-symbols-outlined text-slate-400 text-[14px] shrink-0">expand_more</span>
+        </div>
+        <div id="tf-search-list" class="hidden absolute z-50 mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lift max-h-64 overflow-auto py-1">
+          ${[...new Set(baseTasks.map(t => t.task_name))].sort().map(name => `
+            <button data-value="${escapeHtml(name)}" type="button" class="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-brand-50 transition truncate">${escapeHtml(name)}</button>
+          `).join('')}
         </div>
       </div>
       <div>
@@ -2016,24 +2022,48 @@ function renderTasks() {
     renderTasks();
   });
 
-  // Task name — live contains-search (debounced); table filters as user types
-  const searchEl = $('#tf-search');
-  if (searchEl) {
-    let timer;
-    searchEl.addEventListener('input', e => {
-      clearTimeout(timer);
-      const v = e.target.value;
-      timer = setTimeout(() => {
-        state.filters.tSearch = v;
+  // Task name — combobox: search-as-you-type + dropdown of matching suggestions
+  {
+    const el   = $('#tf-search');
+    const list = $('#tf-search-list');
+    const wrap = $('#tf-search-wrap');
+    if (el && list && wrap) {
+      const open  = () => list.classList.remove('hidden');
+      const close = () => list.classList.add('hidden');
+      const outside = (e) => { if (!wrap.contains(e.target)) { close(); document.removeEventListener('click', outside); } };
+      const filterList = (q) => {
+        const Q = q.toLowerCase();
+        list.querySelectorAll('[data-value]').forEach(b => {
+          b.style.display = b.textContent.toLowerCase().includes(Q) ? '' : 'none';
+        });
+      };
+      el.addEventListener('focus', () => {
+        open();
+        filterList(el.value);
+        setTimeout(() => document.addEventListener('click', outside), 0);
+      });
+      let timer;
+      el.addEventListener('input', e => {
+        const v = e.target.value;
+        filterList(v);
+        open();
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          state.filters.tSearch = v;
+          renderTasks();
+          const fresh = $('#tf-search');
+          if (fresh) { fresh.focus(); fresh.setSelectionRange(v.length, v.length); }
+        }, 180);
+      });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { close(); state.filters.tSearch = ''; renderTasks(); }
+      });
+      list.querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => {
+        state.filters.tSearch = b.dataset.value;
+        close();
         renderTasks();
-        // Restore focus + caret after re-render
-        const fresh = $('#tf-search');
-        if (fresh) { fresh.focus(); fresh.setSelectionRange(v.length, v.length); }
-      }, 180);
-    });
-    searchEl.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { state.filters.tSearch = ''; renderTasks(); }
-    });
+      }));
+    }
   }
   $('#tf-search-clear')?.addEventListener('click', () => { state.filters.tSearch = ''; renderTasks(); });
 
