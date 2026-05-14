@@ -1475,12 +1475,12 @@ function renderMaster() {
         <span class="material-symbols-outlined text-slate-400 text-[14px] shrink-0">expand_more</span>
       </div>
       <div id="mf-doer-list" class="hidden absolute z-50 mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lift max-h-64 overflow-auto py-1">
-        ${visibleDoers.map(d => `
+        ${visibleDoers.filter(d => !state.filters.mDept || d.department === state.filters.mDept).map(d => `
           <button data-value="${escapeHtml(d.name)}" type="button" class="w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-brand-50 transition truncate">
             <span class="flex-1 truncate">${escapeHtml(d.name)}</span>
             <span class="text-[10px] text-slate-400 truncate">${escapeHtml(d.department || '')}</span>
           </button>
-        `).join('')}
+        `).join('') || '<div class="px-3 py-2 text-xs text-slate-400 italic">No doers in this department</div>'}
       </div>
     </div>
     <div>
