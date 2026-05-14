@@ -663,6 +663,23 @@ function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Top progress bar — auto-shown during API calls and tab navigation.
+// Counts concurrent loaders so parallel calls keep it visible until all finish.
+let _loaderCount = 0;
+function showTopLoader() {
+  _loaderCount++;
+  if (_loaderCount === 1) $('#top-loader')?.classList.add('active');
+}
+function hideTopLoader() {
+  _loaderCount = Math.max(0, _loaderCount - 1);
+  if (_loaderCount === 0) $('#top-loader')?.classList.remove('active');
+}
+function flashTopLoader(ms = 280) {
+  // Brief flash for non-async actions (tab switches, modal opens)
+  showTopLoader();
+  setTimeout(hideTopLoader, ms);
+}
+
 // Toast
 function toast(msg, kind = 'info') {
   const colors = {
