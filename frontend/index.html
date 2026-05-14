@@ -2835,19 +2835,39 @@ function renderHeatmap(days) {
       ${cells.map(c => {
         if (!c) return `<div class="aspect-square"></div>`;
         let color = 'bg-slate-100';
+        let pillBg = 'bg-white/25';
         if (c.total > 0) {
-          if (c.delayed === 0)              color = 'bg-emerald-500';
-          else if (c.delayed < c.total)     color = 'bg-amber-400';
-          else                              color = 'bg-red-500';
+          if (c.delayed === 0)              { color = 'bg-emerald-500'; pillBg = 'bg-emerald-800/30'; }
+          else if (c.delayed < c.total)     { color = 'bg-amber-400';   pillBg = 'bg-amber-800/30'; }
+          else                              { color = 'bg-red-500';     pillBg = 'bg-red-800/30'; }
         }
         const d = new Date(c.date);
         const day = d.getDate();
-        const cls = c.total > 0 ? 'cursor-pointer hover:ring-2 hover:ring-brand/40' : 'opacity-50';
+        const cls = c.total > 0 ? 'cursor-pointer hover:ring-2 hover:ring-brand/40 hover:scale-[1.02]' : 'opacity-50';
+        const tip = c.total > 0
+          ? `${c.date} · planned ${c.total} · done ${c.done} · on-time ${c.onTime} · delayed ${c.delayed}`
+          : `${c.date} · no tasks scheduled`;
+        const inner = c.total === 0
+          ? `<span class="text-[11px] font-bold text-slate-400">${day}</span>`
+          : `<div class="flex flex-col items-center justify-center text-white leading-none gap-0.5">
+               <span class="text-[13px] font-bold num">${day}</span>
+               <span class="text-[10px] font-semibold ${pillBg} px-1.5 py-0.5 rounded-full num" title="Done / Planned">${c.done}/${c.total}</span>
+               ${c.delayed > 0 ? `<span class="text-[9px] font-bold opacity-90 num">${c.delayed} late</span>` : ''}
+             </div>`;
         return `
-          <div data-heatmap-day="${c.date}" title="${c.date} · ${c.total} planned · ${c.done} done · ${c.delayed} delayed" class="aspect-square rounded-md ${color} ${cls} relative transition group">
-            <span class="absolute inset-0 grid place-items-center text-[10px] font-bold ${c.total > 0 ? 'text-white' : 'text-slate-400'}">${day}</span>
+          <div data-heatmap-day="${c.date}" title="${tip}" class="aspect-square rounded-md ${color} ${cls} relative transition group">
+            <div class="absolute inset-0 grid place-items-center">${inner}</div>
           </div>`;
       }).join('')}
+    </div>
+    <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] text-slate-500">
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-emerald-500 shrink-0 mt-0.5"></span><span><b class="text-emerald-700">On-time</b> — all tasks done on or before planned date</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-amber-400 shrink-0 mt-0.5"></span><span><b class="text-amber-700">Mixed</b> — some on-time, some delayed</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-red-500 shrink-0 mt-0.5"></span><span><b class="text-red-700">Delayed</b> — every task late or still pending</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-200 shrink-0 mt-0.5"></span><span><b class="text-slate-500">No tasks</b> — nothing scheduled that day</span></div>
+    </div>
+    <div class="mt-2 text-[10px] uppercase tracking-widest text-slate-400 text-center">
+      Each cell shows <span class="font-bold text-slate-600">day · done/planned · N late</span> · click any day for the detailed task list
     </div>
   `;
 }
