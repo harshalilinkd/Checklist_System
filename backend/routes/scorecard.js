@@ -113,24 +113,41 @@ router.get('/:email', async (req, res, next) => {
       });
     }
 
-    // Daily breakdown for the selected period (filled with zeros for empty days)
+    // Daily breakdown for the selected period (filled with zeros for empty days).
+    // Includes avgDelayDays and lastActualDate for heatmap cell details.
     const dailyMap = new Map();
     for (const r of periodRows) {
       if (!dailyMap.has(r.planned_date)) {
-        dailyMap.set(r.planned_date, { date: r.planned_date, total: 0, done: 0, onTime: 0, delayed: 0 });
+        dailyMap.set(r.planned_date, {
+          date: r.planned_date, total: 0, done: 0, onTime: 0, delayed: 0,
+          _delayDaysSum: 0, _lateCount: 0, lastActualDate: null,
+        });
       }
       const d = dailyMap.get(r.planned_date);
       d.total++;
       if (r.actual_date) {
         d.done++;
         if (r.actual_date <= r.planned_date) d.onTime++;
+        else {
+          const days = Math.round((new Date(r.actual_date) - new Date(r.planned_date)) / 86400000);
+          d._delayDaysSum += days;
+          d._lateCount++;
+        }
+        if (!d.lastActualDate || r.actual_date > d.lastActualDate) d.lastActualDate = r.actual_date;
       }
       if (r.status === 'Delayed' || (r.actual_date && r.actual_date > r.planned_date)) d.delayed++;
     }
     const dailyBreakdown = [];
     for (let t = new Date(fromD); t <= toD; t.setDate(t.getDate() + 1)) {
       const iso = toIso(t);
-      dailyBreakdown.push(dailyMap.get(iso) || { date: iso, total: 0, done: 0, onTime: 0, delayed: 0 });
+      const d = dailyMap.get(iso);
+      if (d) {
+        d.avgDelayDays = d._lateCount ? +(d._delayDaysSum / d._lateCount).toFixed(1) : 0;
+        delete d._delayDaysSum; delete d._lateCount;
+        dailyBreakdown.push(d);
+      } else {
+        dailyBreakdown.push({ date: iso, total: 0, done: 0, onTime: 0, delayed: 0, avgDelayDays: 0, lastActualDate: null });
+      }
     }
 
     // Frequency breakdown

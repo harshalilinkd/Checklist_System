@@ -2844,15 +2844,28 @@ function renderHeatmap(days) {
         const d = new Date(c.date);
         const day = d.getDate();
         const cls = c.total > 0 ? 'cursor-pointer hover:ring-2 hover:ring-brand/40 hover:scale-[1.02]' : 'opacity-50';
+        // Build extra info line: shows last completion date if any tasks done, else avg delay days
+        let extraLine = '';
+        if (c.lastActualDate) {
+          extraLine = `<span class="text-[9px] font-semibold opacity-95 num" title="Last completion">done ${fmtDate(c.lastActualDate)}</span>`;
+        } else if (c.delayed > 0) {
+          extraLine = `<span class="text-[9px] font-bold opacity-90 num">${c.delayed} pending</span>`;
+        }
+        // Build "X late · +Yd avg" line if any tasks were done late
+        let lateLine = '';
+        if (c.avgDelayDays > 0) {
+          lateLine = `<span class="text-[9px] font-bold opacity-90 num">+${c.avgDelayDays}d avg late</span>`;
+        }
         const tip = c.total > 0
-          ? `${c.date} · planned ${c.total} · done ${c.done} · on-time ${c.onTime} · delayed ${c.delayed}`
+          ? `${c.date} · planned ${c.total} · done ${c.done} · on-time ${c.onTime} · delayed ${c.delayed}${c.lastActualDate ? ' · last done ' + fmtDate(c.lastActualDate) : ''}${c.avgDelayDays > 0 ? ' · avg delay ' + c.avgDelayDays + ' days' : ''}`
           : `${c.date} · no tasks scheduled`;
         const inner = c.total === 0
           ? `<span class="text-[11px] font-bold text-slate-400">${day}</span>`
-          : `<div class="flex flex-col items-center justify-center text-white leading-none gap-0.5">
+          : `<div class="flex flex-col items-center justify-center text-white leading-none gap-0.5 px-1">
                <span class="text-[13px] font-bold num">${day}</span>
                <span class="text-[10px] font-semibold ${pillBg} px-1.5 py-0.5 rounded-full num" title="Done / Planned">${c.done}/${c.total}</span>
-               ${c.delayed > 0 ? `<span class="text-[9px] font-bold opacity-90 num">${c.delayed} late</span>` : ''}
+               ${extraLine}
+               ${lateLine}
              </div>`;
         return `
           <div data-heatmap-day="${c.date}" title="${tip}" class="aspect-square rounded-md ${color} ${cls} relative transition group">
@@ -2867,7 +2880,7 @@ function renderHeatmap(days) {
       <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-200 shrink-0 mt-0.5"></span><span><b class="text-slate-500">No tasks</b> — nothing scheduled that day</span></div>
     </div>
     <div class="mt-2 text-[10px] uppercase tracking-widest text-slate-400 text-center">
-      Each cell shows <span class="font-bold text-slate-600">day · done/planned · N late</span> · click any day for the detailed task list
+      Each cell: <span class="font-bold text-slate-600">day · done/planned · last completion date or pending count · avg days late</span> · click any cell to drill in
     </div>
   `;
 }
