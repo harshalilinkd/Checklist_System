@@ -881,14 +881,21 @@ async function afterLogin() {
   }
 }
 
+// Strip any leftover `#` or `#access_token=…` from the URL. `window.location.hash`
+// is empty for a bare trailing `#`, so check the raw href too.
+function stripUrlHash() {
+  if (window.location.hash || window.location.href.endsWith('#')) {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+}
+
+// Clean on auth state changes (login via OAuth/One Tap arrives async).
+supabase.auth.onAuthStateChange(() => stripUrlHash());
+
 // Restore session on reload — or, if no session, show Google One Tap prompt
 (async () => {
   const { data } = await supabase.auth.getSession();
-  // After OAuth redirect, Supabase leaves a `#` (or full `#access_token=…`)
-  // in the URL once the session is stored. Clean it up cosmetically.
-  if (window.location.hash) {
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-  }
+  stripUrlHash();
   if (data.session) {
     state.session = data.session;
     await afterLogin();
