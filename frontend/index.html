@@ -2588,33 +2588,27 @@ function renderScorecardBody() {
     loadScorecard();
   });
 
-  // Wire heatmap day clicks → master view filtered to this doer + day.
-  // If the day is outside the currently loaded master window, fetch those
-  // rows from the backend (master+archive UNION) and merge into state.master.
+  // Wire heatmap day clicks → open the structured day-summary modal first
   $$('#sc-body [data-heatmap-day]').forEach(c => c.addEventListener('click', async () => {
     const day = c.dataset.heatmapDay;
     const email = state.scorecard.email;
-    const already = state.master.some(r => r.doer_email === email && r.planned_date === day);
-    if (!already) {
-      try {
-        const res = await api(`/api/master/range?email=${encodeURIComponent(email)}&from=${day}&to=${day}`);
-        const existing = new Set(state.master.map(r => r.occurrence_key));
-        for (const r of (res.rows || [])) {
-          if (!existing.has(r.occurrence_key)) {
-            state.master.push(r);
-            existing.add(r.occurrence_key);
-          }
+    let rows;
+    try {
+      const res = await api(`/api/master/range?email=${encodeURIComponent(email)}&from=${day}&to=${day}`);
+      rows = res.rows || [];
+      // Merge into state.master so subsequent drill-in to Master Checklist works
+      const existing = new Set(state.master.map(r => r.occurrence_key));
+      for (const r of rows) {
+        if (!existing.has(r.occurrence_key)) {
+          state.master.push(r);
+          existing.add(r.occurrence_key);
         }
-      } catch (err) {
-        toast('Failed to load rows for ' + day + ': ' + err.message, 'error');
-        return;
       }
+    } catch (err) {
+      toast('Failed to load rows for ' + day + ': ' + err.message, 'error');
+      return;
     }
-    state.filters.mDoer = email;
-    state.filters.mFrom = day;
-    state.filters.mTo   = day;
-    state.filters.mStatus = ''; state.filters.mTask = ''; state.filters.mFreq = ''; state.filters.mDept = '';
-    switchView('master');
+    openDaySummaryModal(day, email, rows);
   }));
 }
 
@@ -2800,6 +2794,152 @@ function renderDayOfWeek(daily) {
       <span>Day</span><span>Volume</span><span>On-time %</span>
     </div>
   `;
+}
+
+function openDaySummaryModal(date, email, rows) {
+  const doer = state.doers.find(d => d.email === email);
+  const total   = rows.length;
+  const done    = rows.filter(r => r.actual_date).length;
+  const onTime  = rows.filter(r => r.actual_date && r.actual_date <= r.planned_date).length;
+  const lateRows = rows.filter(r => r.actual_date && r.actual_date > r.planned_date);
+  const late    = lateRows.length;
+  const pending = total - done;
+  const lastActual = rows.map(r => r.actual_date).filter(Boolean).sort().pop();
+  const avgDelay = late ? +(lateRows.reduce((s, r) => s + (new Date(r.actual_date) - new Date(r.planned_date)) / 86400000, 0) / late).toFixed(1) : 0;
+  const completionPct = total ? Math.round((done / total) * 100) : 0;
+  const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+
+  // Pick header tint by overall day status
+  let headerTint = 'from-slate-50 to-slate-100';
+  let dotColor = 'bg-slate-400';
+  let statusLabel = 'No tasks';
+  if (total > 0) {
+    if (late === 0 && pending === 0)       { headerTint = 'from-emerald-50 to-emerald-100'; dotColor = 'bg-emerald-500'; statusLabel = 'All on-time'; }
+    else if (late === total || pending === total) { headerTint = 'from-red-50 to-red-100';     dotColor = 'bg-red-500';     statusLabel = 'Needs attention'; }
+    else                                    { headerTint = 'from-amber-50 to-amber-100';   dotColor = 'bg-amber-500';   statusLabel = 'Mixed'; }
+  }
+
+  // Sort rows: on-time first, then late, then pending
+  const sorted = [...rows].sort((a, b) => {
+    const rank = r => !r.actual_date ? 2 : (r.actual_date > r.planned_date ? 1 : 0);
+    return rank(a) - rank(b);
+  });
+
+  const root = $('#modal-root');
+  root.innerHTML = `
+    <div class="fixed inset-0 z-40 modal-bg flex items-center justify-center p-4 animate-pop" id="day-modal-backdrop">
+      <div class="bg-white rounded-2xl shadow-lift w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-br ${headerTint} flex items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="h-2 w-2 rounded-full ${dotColor}"></span>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Day summary · ${statusLabel}</p>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">${dayName}, ${fmtDate(date)}</h3>
+            <p class="text-xs text-slate-600 mt-0.5">${escapeHtml(doer?.name || email)}${doer?.department ? ' · ' + escapeHtml(doer.department) : ''}</p>
+          </div>
+          <button id="day-modal-close" class="h-8 w-8 grid place-items-center rounded-lg hover:bg-white/60 text-slate-600 transition shrink-0">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+
+        <!-- KPI tiles -->
+        <div class="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3 border-b border-slate-100">
+          <div class="bg-slate-50 rounded-xl px-3 py-2.5">
+            <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Planned</div>
+            <div class="text-2xl font-black text-slate-900 num leading-tight">${total}</div>
+          </div>
+          <div class="bg-emerald-50 rounded-xl px-3 py-2.5">
+            <div class="text-[10px] uppercase tracking-widest text-emerald-700 font-semibold">Done</div>
+            <div class="text-2xl font-black text-emerald-700 num leading-tight">${done}<span class="text-xs font-bold ml-1">/ ${total}</span></div>
+          </div>
+          <div class="bg-red-50 rounded-xl px-3 py-2.5">
+            <div class="text-[10px] uppercase tracking-widest text-red-700 font-semibold">${pending > 0 ? 'Pending' : 'Late'}</div>
+            <div class="text-2xl font-black text-red-700 num leading-tight">${pending > 0 ? pending : late}</div>
+          </div>
+          <div class="bg-amber-50 rounded-xl px-3 py-2.5">
+            <div class="text-[10px] uppercase tracking-widest text-amber-700 font-semibold">Avg delay</div>
+            <div class="text-2xl font-black text-amber-700 num leading-tight">${avgDelay > 0 ? '+' + avgDelay + 'd' : '—'}</div>
+          </div>
+        </div>
+
+        <!-- Completion bar + extra info -->
+        <div class="px-6 py-3 border-b border-slate-100 space-y-2">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] uppercase tracking-widest text-slate-500 w-20">Completion</span>
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+              <div class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500" style="width:${completionPct}%"></div>
+            </div>
+            <span class="text-xs font-bold num text-slate-900 w-10 text-right">${completionPct}%</span>
+          </div>
+          ${lastActual ? `
+            <div class="flex items-center gap-2 text-xs text-slate-600">
+              <span class="material-symbols-outlined text-[14px] text-emerald-500">event_available</span>
+              <span>Last completion: <span class="font-semibold num">${fmtDate(lastActual)}</span></span>
+              ${onTime > 0 ? `<span class="ml-auto text-[11px] text-emerald-700 font-semibold">${onTime} on-time</span>` : ''}
+            </div>` : pending > 0 ? `
+            <div class="flex items-center gap-2 text-xs text-red-700">
+              <span class="material-symbols-outlined text-[14px]">warning</span>
+              <span>${pending} task${pending === 1 ? '' : 's'} still pending</span>
+            </div>` : ''}
+        </div>
+
+        <!-- Task list -->
+        <div class="flex-1 overflow-y-auto px-6 py-3">
+          <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Tasks (${rows.length})</div>
+          ${rows.length === 0 ? '<div class="py-8 text-center text-sm text-slate-400">No tasks scheduled for this day.</div>' : sorted.map(r => {
+            const isDone = !!r.actual_date;
+            const isLate = isDone && r.actual_date > r.planned_date;
+            const days = isLate ? Math.round((new Date(r.actual_date) - new Date(r.planned_date)) / 86400000) : 0;
+            const badge = !isDone
+              ? `<span class="badge badge-${statusKey(r.status)}">${r.status}</span>`
+              : isLate
+                ? `<span class="badge badge-Delayed">Late +${days}d</span>`
+                : `<span class="badge badge-Done">On-time</span>`;
+            const icon = isDone
+              ? (isLate ? 'schedule' : 'check_circle')
+              : 'radio_button_unchecked';
+            const iconColor = isDone ? (isLate ? 'text-red-500' : 'text-emerald-500') : 'text-slate-300';
+            return `
+              <div class="flex items-center gap-3 py-2 ${rows.length > 1 ? 'border-b border-slate-100 last:border-0' : ''}">
+                <span class="material-symbols-outlined text-[18px] ${iconColor} shrink-0">${icon}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm text-slate-900 truncate">${escapeHtml(r.task_name || '(deleted task)')}</div>
+                  <div class="text-[11px] text-slate-500 num">Planned ${fmtDate(r.planned_date)}${isDone ? ' · Done ' + fmtDate(r.actual_date) : ''}${r.freq ? ' · ' + escapeHtml(r.freq) : ''}</div>
+                </div>
+                ${badge}
+              </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button id="day-modal-close-2" class="text-sm font-semibold text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-lg transition">Close</button>
+          <button id="day-modal-open-master" class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-brand hover:bg-brand-700 px-4 py-2 rounded-lg transition shadow-sm">
+            Open in Master Checklist
+            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const close = () => { root.innerHTML = ''; document.removeEventListener('keydown', escClose); };
+  const escClose = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', escClose);
+  $('#day-modal-close').onclick = close;
+  $('#day-modal-close-2').onclick = close;
+  $('#day-modal-backdrop').addEventListener('click', e => { if (e.target.id === 'day-modal-backdrop') close(); });
+  $('#day-modal-open-master').onclick = () => {
+    state.filters.mDoer = email;
+    state.filters.mFrom = date;
+    state.filters.mTo   = date;
+    state.filters.mStatus = ''; state.filters.mTask = ''; state.filters.mFreq = ''; state.filters.mDept = '';
+    close();
+    switchView('master');
+  };
 }
 
 function renderHeatmapTitle(fromIso, toIso) {
