@@ -1074,7 +1074,7 @@ function renderDashFilters() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
           <select id="df-doer" class="bg-transparent outline-none text-sm w-full">
             <option value="">All doers</option>
-            ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${state.filters.dashDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+            ${state.doers.filter(d => !state.filters.dashDept || d.department === state.filters.dashDept).map(d => `<option value="${escapeHtml(d.email)}" ${state.filters.dashDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1124,12 +1124,25 @@ function renderDashFilters() {
     state.filters[key] = e.target.value;
     renderDashboard();
   });
-  // Doer change syncs Scorecard too
+  // Doer change syncs Scorecard too. Smart dependent: picking a specific
+  // doer auto-fills their department.
   $('#df-doer')?.addEventListener('change', e => {
     syncDoer(e.target.value);
+    if (e.target.value) {
+      const doer = state.doers.find(d => d.email === e.target.value);
+      if (doer?.department) state.filters.dashDept = doer.department;
+    }
     renderDashboard();
   });
-  wire('df-dept', 'dashDept');
+  // Department change — if it conflicts with the currently picked doer, clear the doer.
+  $('#df-dept')?.addEventListener('change', e => {
+    state.filters.dashDept = e.target.value;
+    if (state.filters.dashDoer) {
+      const doer = state.doers.find(d => d.email === state.filters.dashDoer);
+      if (e.target.value && doer?.department !== e.target.value) syncDoer('');
+    }
+    renderDashboard();
+  });
   wire('df-from', 'dashFrom');
   wire('df-to',   'dashTo');
   $('#df-clear')?.addEventListener('click', () => {
