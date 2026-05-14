@@ -178,8 +178,8 @@ All five `<section id="view-*">` elements start with `hidden` attribute in the H
 
 ### Financial-year clamp on occurrence generation
 
-[backend/lib/occurrences.js](backend/lib/occurrences.js) hard-clamps every generated occurrence to the window `FY_START..FY_END` (default **2026-01-01 to 2027-03-31**, configurable via env vars). Applied after all other range filters. This means:
-- A task with start_date 2025-09-15 only generates occurrences from 2026-01-01 onwards
+[backend/lib/occurrences.js](backend/lib/occurrences.js) hard-clamps every generated occurrence to the window `FY_START..FY_END` (default **2026-04-01 to 2027-03-31**, configurable via env vars). Applied after all other range filters. This means:
+- A task with start_date 2025-09-15 only generates occurrences from 2026-04-01 onwards
 - The weekly extend-occurrences job won't insert rows past 2027-03-31
 - Pre-existing imported rows outside the FY are untouched — only future generation is clamped
 

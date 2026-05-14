@@ -3143,7 +3143,7 @@ function renderHeatmap(days) {
             </button>`
           : '';
         return `
-          <div data-heatmap-day="${c.date}" title="${tip}" class="aspect-square rounded-md ${color} ${cls} relative transition group overflow-hidden">
+          <div data-heatmap-day="${c.date}" class="aspect-square rounded-md ${color} ${cls} relative transition group overflow-hidden">
             <div class="absolute inset-0 grid place-items-center">${inner}</div>
             ${actionBtn}
             ${progressBar}

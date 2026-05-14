@@ -9,7 +9,7 @@
 const { addDays, addMonths, parseISO, format, getDay, getDate } = require('date-fns');
 
 // Financial year window — override via env vars if needed.
-const FY_START = process.env.FY_START || '2026-01-01';
+const FY_START = process.env.FY_START || '2026-04-01';
 const FY_END   = process.env.FY_END   || '2027-03-31';
 
 function toIso(d) { return format(d, 'yyyy-MM-dd'); }
