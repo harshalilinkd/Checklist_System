@@ -2844,32 +2844,39 @@ function renderHeatmap(days) {
         const d = new Date(c.date);
         const day = d.getDate();
         const cls = c.total > 0 ? 'cursor-pointer hover:ring-2 hover:ring-brand/40 hover:scale-[1.02]' : 'opacity-50';
-        // Build extra info line: shows last completion date if any tasks done, else avg delay days
-        let extraLine = '';
-        if (c.lastActualDate) {
-          extraLine = `<span class="text-[9px] font-semibold opacity-95 num" title="Last completion">done ${fmtDate(c.lastActualDate)}</span>`;
-        } else if (c.delayed > 0) {
-          extraLine = `<span class="text-[9px] font-bold opacity-90 num">${c.delayed} pending</span>`;
-        }
-        // Build "X late · +Yd avg" line if any tasks were done late
-        let lateLine = '';
-        if (c.avgDelayDays > 0) {
-          lateLine = `<span class="text-[9px] font-bold opacity-90 num">+${c.avgDelayDays}d avg late</span>`;
-        }
-        const tip = c.total > 0
-          ? `${c.date} · planned ${c.total} · done ${c.done} · on-time ${c.onTime} · delayed ${c.delayed}${c.lastActualDate ? ' · last done ' + fmtDate(c.lastActualDate) : ''}${c.avgDelayDays > 0 ? ' · avg delay ' + c.avgDelayDays + ' days' : ''}`
-          : `${c.date} · no tasks scheduled`;
+        // Rich tooltip — full detail on hover instead of cramming into the cell
+        const tipParts = [
+          `${fmtDate(c.date)} (planned)`,
+          `${c.done} of ${c.total} done`,
+          c.onTime > 0   ? `${c.onTime} on-time` : null,
+          c.delayed > 0  ? `${c.delayed} delayed/pending` : null,
+          c.lastActualDate ? `last completion: ${fmtDate(c.lastActualDate)}` : null,
+          c.avgDelayDays > 0 ? `avg delay: ${c.avgDelayDays}d` : null,
+        ].filter(Boolean);
+        const tip = c.total > 0 ? tipParts.join(' · ') : `${fmtDate(c.date)} · no tasks scheduled`;
+
+        // Compact cell content: day · done/total · delay-days (only if late)
+        const pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
+        const delayBadge = c.avgDelayDays > 0
+          ? `<span class="text-[10px] font-bold ${pillBg} px-1.5 py-0.5 rounded-full num leading-none">+${c.avgDelayDays}d</span>`
+          : '';
         const inner = c.total === 0
-          ? `<span class="text-[11px] font-bold text-slate-400">${day}</span>`
-          : `<div class="flex flex-col items-center justify-center text-white leading-none gap-0.5 px-1">
-               <span class="text-[13px] font-bold num">${day}</span>
-               <span class="text-[10px] font-semibold ${pillBg} px-1.5 py-0.5 rounded-full num" title="Done / Planned">${c.done}/${c.total}</span>
-               ${extraLine}
-               ${lateLine}
+          ? `<span class="text-[12px] font-bold text-slate-400">${day}</span>`
+          : `<div class="flex flex-col items-center justify-center text-white leading-none gap-1 px-1">
+               <span class="text-[15px] font-black num">${day}</span>
+               <span class="text-[11px] font-bold opacity-95 num">${c.done}/${c.total}</span>
+               ${delayBadge}
              </div>`;
+        // Progress bar at bottom of cell — visual completion %
+        const progressBar = c.total > 0
+          ? `<div class="absolute bottom-0 left-0 right-0 h-1 bg-black/15">
+               <div class="h-full bg-white/70" style="width:${pct}%"></div>
+             </div>`
+          : '';
         return `
-          <div data-heatmap-day="${c.date}" title="${tip}" class="aspect-square rounded-md ${color} ${cls} relative transition group">
+          <div data-heatmap-day="${c.date}" title="${tip}" class="aspect-square rounded-md ${color} ${cls} relative transition group overflow-hidden">
             <div class="absolute inset-0 grid place-items-center">${inner}</div>
+            ${progressBar}
           </div>`;
       }).join('')}
     </div>
@@ -2880,7 +2887,7 @@ function renderHeatmap(days) {
       <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-200 shrink-0 mt-0.5"></span><span><b class="text-slate-500">No tasks</b> — nothing scheduled that day</span></div>
     </div>
     <div class="mt-2 text-[10px] uppercase tracking-widest text-slate-400 text-center">
-      Each cell: <span class="font-bold text-slate-600">day · done/planned · last completion date or pending count · avg days late</span> · click any cell to drill in
+      Each cell: <span class="font-bold text-slate-600">day · done/planned · +avg delay</span> · bottom bar = completion % · hover for full date breakdown · click to drill in
     </div>
   `;
 }
