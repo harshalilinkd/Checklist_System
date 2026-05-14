@@ -206,12 +206,12 @@
         <div class="flex-1 h-px bg-slate-200"></div>
       </div>
 
-      <form id="login-form" class="space-y-4">
+      <form id="login-form" class="space-y-4" autocomplete="off" novalidate>
         <div>
           <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Email</label>
           <div class="mt-1.5 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand/40 transition">
             <span class="material-symbols-outlined text-slate-400 text-[20px]">mail</span>
-            <input name="email" type="email" required autocomplete="email" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="you@company.com" />
+            <input name="email" type="email" required autocomplete="off" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="you@company.com" />
           </div>
         </div>
 
@@ -219,7 +219,7 @@
           <label class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Password</label>
           <div class="mt-1.5 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-brand/20 focus-within:border-brand/40 transition">
             <span class="material-symbols-outlined text-slate-400 text-[20px]">lock</span>
-            <input name="password" type="password" required autocomplete="current-password" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="••••••••" />
+            <input name="password" type="password" required autocomplete="new-password" class="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400" placeholder="••••••••" />
           </div>
         </div>
 
@@ -230,6 +230,17 @@
 
         <p id="login-error" class="text-xs text-red-600 text-center" hidden></p>
       </form>
+      <script>
+        // Defensive: clear any autofill values that slipped through the autocomplete hints
+        // (Chrome sometimes ignores autocomplete=off). Also guarantees the form will never
+        // navigate via a default GET submit on a slow page load.
+        addEventListener('DOMContentLoaded', () => {
+          const f = document.getElementById('login-form');
+          if (!f) return;
+          f.reset();
+          f.addEventListener('submit', (e) => e.preventDefault(), { capture: true });
+        });
+      </script>
     </div>
 
     <p class="mt-6 text-center text-[11px] text-slate-400 uppercase tracking-widest">v1.0 · Secured by Supabase Auth</p>
