@@ -46,6 +46,8 @@ node scripts/test-admin.js                                      # exercise /api/
 node scripts/update-user.js <email> <password> <name> <role>    # update an existing Auth user (password reset, role change)
 node scripts/verify.js                                          # row counts + sample queries on the live DB
 node scripts/probe-region.js                                    # discover which AWS region a Supabase project lives in (pooler hostname probe)
+node scripts/regen-master-from-tasks.js [--dry]                 # truncate master_checklist + regenerate every row from tasks.start_date..end_date (FY-clamped)
+node scripts/export-master-csv.js                               # snapshot current master_checklist back to data/master_checklist.csv (DD/MM/YYYY)
 ```
 
 No formal test runner; the `test-*` and `smoke-test` scripts are ad-hoc Node scripts.
@@ -79,7 +81,7 @@ end
 
 ### Recurrence expansion
 
-When a task is created or extended, [backend/lib/occurrences.js](backend/lib/occurrences.js) generates one `master_checklist` row per scheduled date. Supported frequencies: `D, W, F, M, Q, Y, SM, E1ST..E4TH, ELAST` (frontend currently exposes only `D, W, M, Q, Y`, but the math handles all of them). Inserts use `ON CONFLICT (occurrence_key) DO NOTHING` so re-saving a task or re-running the extension job is idempotent.
+When a task is created or extended, [backend/lib/occurrences.js](backend/lib/occurrences.js) generates one `master_checklist` row per scheduled date. Supported frequencies: `D, W, F, M, Q, Y, SM, E1ST..E4TH, ELAST` (frontend currently exposes `D, W, F, M, Q, Y` via the task modal — `FREQ_OPTIONS` in [frontend/index.html](frontend/index.html); the math handles all of them). Inserts use `ON CONFLICT (occurrence_key) DO NOTHING` so re-saving a task or re-running the extension job is idempotent.
 
 ### Bootstrap window (the hot path)
 
