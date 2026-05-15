@@ -694,6 +694,9 @@ const fmtDate = (iso) => {
 };
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const addDaysIso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Current calendar month bounds (local time) — used as Scorecard default.
+const monthStartIso = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
+const monthEndIso   = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10); };
 const initials = (s) => (s || '?').split(/[@\s.]/).filter(Boolean).slice(0,2).map(p => p[0]?.toUpperCase()).join('') || '?';
 const statusKey = (s) => (s || '').replace(/\s+/g, '');
 
@@ -2259,8 +2262,8 @@ async function deleteTask(id) {
 // ─── SCORECARD ────────────────────────────────────────────────────────
 state.scorecard = {
   email: '',
-  from: addDaysIso(-30),
-  to:   todayIso(),
+  from: monthStartIso(),
+  to:   monthEndIso(),
   data: null,
   loading: false,
 };
@@ -2371,8 +2374,8 @@ function renderScorecardControls() {
     { label: 'Last month',    from: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)), to: toIsoLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 0)) },
     { label: 'Year to date',  from: toIsoLocal(new Date(new Date().getFullYear(), 0, 1)),                          to: todayIso() },
   ];
-  const defaultFrom = addDaysIso(-30);
-  const defaultTo   = todayIso();
+  const defaultFrom = monthStartIso();
+  const defaultTo   = monthEndIso();
   const filtersDirty = !!s.email || s.from !== defaultFrom || s.to !== defaultTo;
 
   $('#sc-presets').innerHTML = `
@@ -2553,8 +2556,8 @@ function renderScorecardBody() {
                 <input id="hm-to" type="date" value="${d.period.to}" class="bg-transparent outline-none text-xs font-semibold text-slate-900 num cursor-pointer" />
               </label>
               ${(() => {
-                const defaultFrom = addDaysIso(-30);
-                const defaultTo   = todayIso();
+                const defaultFrom = monthStartIso();
+                const defaultTo   = monthEndIso();
                 const isDefault   = d.period.from === defaultFrom && d.period.to === defaultTo;
                 return `<button id="hm-reset" ${isDefault ? 'disabled' : ''} class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition ${isDefault ? 'text-slate-300 bg-slate-100 cursor-not-allowed' : 'text-red-700 bg-red-50 hover:bg-red-100'}" title="Reset to last 30 days">
                   <span class="material-symbols-outlined text-[12px]">filter_alt_off</span>Reset
@@ -2665,10 +2668,10 @@ function renderScorecardBody() {
     renderScorecardControls();
     loadScorecard();
   });
-  // Reset button — restore default period (today-30 .. today)
+  // Reset button — restore default period (current calendar month)
   $('#hm-reset')?.addEventListener('click', () => {
-    state.scorecard.from = addDaysIso(-30);
-    state.scorecard.to   = todayIso();
+    state.scorecard.from = monthStartIso();
+    state.scorecard.to   = monthEndIso();
     renderScorecardControls();
     loadScorecard();
   });
