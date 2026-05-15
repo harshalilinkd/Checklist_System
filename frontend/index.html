@@ -695,8 +695,11 @@ const fmtDate = (iso) => {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const addDaysIso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 // Current calendar month bounds (local time) — used as Scorecard default.
-const monthStartIso = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
-const monthEndIso   = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10); };
+// Must format from local-time components, not toISOString() (which is UTC
+// and shifts IST midnight back to the previous day).
+const _fmtLocalIso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const monthStartIso = () => { const d = new Date(); return _fmtLocalIso(new Date(d.getFullYear(), d.getMonth(), 1)); };
+const monthEndIso   = () => { const d = new Date(); return _fmtLocalIso(new Date(d.getFullYear(), d.getMonth() + 1, 0)); };
 const initials = (s) => (s || '?').split(/[@\s.]/).filter(Boolean).slice(0,2).map(p => p[0]?.toUpperCase()).join('') || '?';
 const statusKey = (s) => (s || '').replace(/\s+/g, '');
 
