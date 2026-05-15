@@ -1055,14 +1055,11 @@ function activeTasksFilterCount() {
   return ['tDoer', 'tDept', 'tSearch', 'tFreq', 'tFrom', 'tTo'].filter(k => f[k]).length;
 }
 
-// One-way sync from Dashboard → Scorecard: picking a doer on Dashboard
-// also pre-selects them in Scorecard. Scorecard → Dashboard is NOT synced
-// (the user wants those two filters independent); the "Open Dashboard →"
-// button is the explicit propagation if they want it.
-function syncDoer(email) {
-  state.filters.dashDoer = email || '';
-  state.scorecard.email  = email || '';
-}
+// Dashboard and Scorecard doer filters are fully independent. Use the
+// explicit "View Scorecard →" / "Open Dashboard →" pills to copy one
+// to the other on demand. Auto-sync would be a usability bug — picking a
+// doer on Dashboard shouldn't quietly mutate Scorecard's filter (or vice
+// versa).
 
 function renderDashFilters() {
   const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
@@ -1124,10 +1121,10 @@ function renderDashFilters() {
     state.filters[key] = e.target.value;
     renderDashboard();
   });
-  // Doer change syncs Scorecard too. Smart dependent: picking a specific
-  // doer auto-fills their department.
+  // Smart dependent: picking a specific doer auto-fills their department.
+  // Does NOT touch Scorecard's filter — those are independent.
   $('#df-doer')?.addEventListener('change', e => {
-    syncDoer(e.target.value);
+    state.filters.dashDoer = e.target.value;
     if (e.target.value) {
       const doer = state.doers.find(d => d.email === e.target.value);
       if (doer?.department) state.filters.dashDept = doer.department;
@@ -1139,21 +1136,23 @@ function renderDashFilters() {
     state.filters.dashDept = e.target.value;
     if (state.filters.dashDoer) {
       const doer = state.doers.find(d => d.email === state.filters.dashDoer);
-      if (e.target.value && doer?.department !== e.target.value) syncDoer('');
+      if (e.target.value && doer?.department !== e.target.value) state.filters.dashDoer = '';
     }
     renderDashboard();
   });
   wire('df-from', 'dashFrom');
   wire('df-to',   'dashTo');
   $('#df-clear')?.addEventListener('click', () => {
-    syncDoer('');
+    state.filters.dashDoer = '';
     state.filters.dashDept = '';
     state.filters.dashFrom = '';
     state.filters.dashTo = '';
     renderDashboard();
   });
   $('#df-view-sc')?.addEventListener('click', () => {
-    // syncDoer already set Scorecard.email when doer was picked
+    // Explicit "View this doer's Scorecard" action — propagate the
+    // Dashboard's doer pick to Scorecard.email on click only.
+    state.scorecard.email = state.filters.dashDoer || '';
     switchView('scorecard');
   });
 }
@@ -1436,9 +1435,10 @@ function renderLeaderboard(rows) {
     `;
   }).join('');
 
-  // Click-through: open this doer's scorecard
+  // Click-through: open this doer's scorecard. Only sets Scorecard.email —
+  // Dashboard's own doer filter is left untouched (independent filters).
   $$('#leaderboard [data-leaderboard-email]').forEach(row => row.addEventListener('click', () => {
-    syncDoer(row.dataset.leaderboardEmail);
+    state.scorecard.email = row.dataset.leaderboardEmail;
     switchView('scorecard');
   }));
 }
