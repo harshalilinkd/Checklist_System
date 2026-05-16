@@ -1068,7 +1068,24 @@ function activeTasksFilterCount() {
 // versa).
 
 function renderDashFilters() {
-  const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
+  // Cross-filtering: option lists for Doer/Department are narrowed based on
+  // the OTHER selected filters so users can't pick combinations with zero
+  // matching rows.
+  const f = state.filters;
+  const dashFilteredExcept = (skip) => state.master.filter(r => {
+    if (skip !== 'dashDoer' && f.dashDoer && r.doer_email !== f.dashDoer) return false;
+    if (skip !== 'dashDept' && f.dashDept && deptForEmail(r.doer_email) !== f.dashDept) return false;
+    if (skip !== 'dashFrom' && f.dashFrom && r.planned_date < f.dashFrom) return false;
+    if (skip !== 'dashTo'   && f.dashTo   && r.planned_date > f.dashTo)   return false;
+    return true;
+  });
+  const eligibleDoerEmails = new Set(dashFilteredExcept('dashDoer').map(r => r.doer_email));
+  const eligibleDepts      = new Set(dashFilteredExcept('dashDept').map(r => deptForEmail(r.doer_email)).filter(Boolean));
+  if (f.dashDoer) eligibleDoerEmails.add(f.dashDoer);
+  if (f.dashDept) eligibleDepts.add(f.dashDept);
+  const eligibleDoers = state.doers.filter(d => eligibleDoerEmails.has(d.email));
+  const departments = [...eligibleDepts].sort();
+
   $('#dash-filters').innerHTML = `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div>
@@ -1077,7 +1094,7 @@ function renderDashFilters() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
           <select id="df-doer" class="bg-transparent outline-none text-sm w-full">
             <option value="">All doers</option>
-            ${state.doers.filter(d => !state.filters.dashDept || d.department === state.filters.dashDept).map(d => `<option value="${escapeHtml(d.email)}" ${state.filters.dashDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+            ${eligibleDoers.map(d => `<option value="${escapeHtml(d.email)}" ${f.dashDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1087,7 +1104,7 @@ function renderDashFilters() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">domain</span>
           <select id="df-dept" class="bg-transparent outline-none text-sm w-full">
             <option value="">All departments</option>
-            ${departments.map(d => `<option value="${escapeHtml(d)}" ${state.filters.dashDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+            ${departments.map(d => `<option value="${escapeHtml(d)}" ${f.dashDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1498,9 +1515,46 @@ function masterFilteredBase() {
 
 function renderMaster() {
   // Filters
-  const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
   const visibleDoers = state.user?.isAdmin ? state.doers : state.doers.filter(d => d.email === state.user.email);
   const visibleTasks = state.user?.isAdmin ? state.tasks : state.tasks.filter(t => t.doer_email === state.user.email);
+
+  // Cross-filtering: option lists for each dropdown come from the master
+  // rows filtered by every OTHER selected filter (not its own).
+  const f = state.filters;
+  const todayIso2 = todayIso();
+  const computedStatus = (r) => {
+    if (r.status === 'Done') return 'Done';
+    if (r.planned_date < todayIso2) return 'Delayed';
+    if (r.planned_date === todayIso2) return 'Today';
+    if (r.freq !== 'D' && r.planned_date <= addDaysIso(7)) return 'Upcoming Focus';
+    return 'Scheduled';
+  };
+  const masterFilteredExcept = (skip) => {
+    const dq = (f.mDoer || '').trim().toLowerCase();
+    const tq = (f.mTask || '').trim().toLowerCase();
+    return state.master.filter(r => {
+      if (skip !== 'mDoer' && dq) {
+        const doer = state.doers.find(d => d.email === r.doer_email);
+        if (!((doer?.name || '').toLowerCase().includes(dq) || (r.doer_email || '').toLowerCase().includes(dq))) return false;
+      }
+      if (skip !== 'mTask'   && tq        && !((r.task_name || '').toLowerCase().includes(tq))) return false;
+      if (skip !== 'mDept'   && f.mDept   && deptForEmail(r.doer_email) !== f.mDept) return false;
+      if (skip !== 'mFreq'   && f.mFreq   && r.freq !== f.mFreq) return false;
+      if (skip !== 'mStatus' && f.mStatus && computedStatus(r) !== f.mStatus) return false;
+      if (skip !== 'mFrom'   && f.mFrom   && r.planned_date < f.mFrom) return false;
+      if (skip !== 'mTo'     && f.mTo     && r.planned_date > f.mTo)   return false;
+      return true;
+    });
+  };
+  const eligibleDoerEmails = new Set(masterFilteredExcept('mDoer').map(r => r.doer_email));
+  const eligibleDepts      = new Set(masterFilteredExcept('mDept').map(r => deptForEmail(r.doer_email)).filter(Boolean));
+  const eligibleFreqs      = new Set(masterFilteredExcept('mFreq').map(r => r.freq).filter(Boolean));
+  const eligibleTaskNames  = [...new Set(masterFilteredExcept('mTask').map(r => r.task_name).filter(Boolean))].sort();
+  const eligibleDoers = visibleDoers.filter(d => eligibleDoerEmails.has(d.email));
+  if (f.mDept) eligibleDepts.add(f.mDept);
+  if (f.mFreq) eligibleFreqs.add(f.mFreq);
+  const departments = [...eligibleDepts].sort();
+  const freqOptions = [...eligibleFreqs].sort();
 
   $('#master-filters').innerHTML = `
     <div class="contents">
@@ -1516,12 +1570,12 @@ function renderMaster() {
         <span class="material-symbols-outlined text-slate-400 text-[14px] shrink-0">expand_more</span>
       </div>
       <div id="mf-doer-list" class="hidden absolute z-50 mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lift max-h-64 overflow-auto py-1">
-        ${visibleDoers.filter(d => !state.filters.mDept || d.department === state.filters.mDept).map(d => `
+        ${eligibleDoers.map(d => `
           <button data-value="${escapeHtml(d.name)}" type="button" class="w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-brand-50 transition truncate">
             <span class="flex-1 truncate">${escapeHtml(d.name)}</span>
             <span class="text-[10px] text-slate-400 truncate">${escapeHtml(d.department || '')}</span>
           </button>
-        `).join('') || '<div class="px-3 py-2 text-xs text-slate-400 italic">No doers in this department</div>'}
+        `).join('') || '<div class="px-3 py-2 text-xs text-slate-400 italic">No matching doers</div>'}
       </div>
     </div>
     <div>
@@ -1546,7 +1600,7 @@ function renderMaster() {
         <span class="material-symbols-outlined text-slate-400 text-[14px] shrink-0">expand_more</span>
       </div>
       <div id="mf-task-list" class="hidden absolute z-50 mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lift max-h-64 overflow-auto py-1">
-        ${[...new Set(visibleTasks.map(t => t.task_name))].sort().map(name => `
+        ${eligibleTaskNames.map(name => `
           <button data-value="${escapeHtml(name)}" type="button" class="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-brand-50 transition truncate">${escapeHtml(name)}</button>
         `).join('')}
       </div>
@@ -1558,7 +1612,7 @@ function renderMaster() {
         <span class="material-symbols-outlined text-slate-400 text-[16px]">repeat</span>
         <select id="mf-freq" class="bg-transparent outline-none text-sm w-full">
           <option value="">All frequencies</option>
-          ${[...new Set(state.master.map(r => r.freq).filter(Boolean))].sort().map(q => `<option value="${escapeHtml(q)}" ${state.filters.mFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
+          ${freqOptions.map(q => `<option value="${escapeHtml(q)}" ${state.filters.mFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -1983,8 +2037,32 @@ function renderTasks() {
   const f = state.filters;
   const baseTasks = state.user?.isAdmin ? state.tasks : state.tasks.filter(t => t.doer_email === state.user.email);
   const visibleDoers = state.user?.isAdmin ? state.doers : state.doers.filter(d => d.email === state.user.email);
-  const freqsInUse = [...new Set(baseTasks.map(t => t.frequency))].sort();
-  const departments = [...new Set(state.doers.map(d => d.department).filter(Boolean))].sort();
+  // Cross-filtering: each dropdown's options come from the task set filtered
+  // by every OTHER selected filter (not its own). So picking Freq=M narrows
+  // the Doer list to doers who actually have an M task, etc.
+  const filteredTasksExcept = (skip) => {
+    const dq = (f.tSearch || '').trim().toLowerCase();
+    return baseTasks.filter(t => {
+      if (skip !== 'tDoer'   && f.tDoer   && t.doer_email !== f.tDoer) return false;
+      if (skip !== 'tDept'   && f.tDept   && deptForEmail(t.doer_email) !== f.tDept) return false;
+      if (skip !== 'tFreq'   && f.tFreq   && t.frequency !== f.tFreq) return false;
+      if (skip !== 'tSearch' && dq        && !(t.task_name || '').toLowerCase().includes(dq)) return false;
+      if (skip !== 'tFrom'   && f.tFrom   && (String(t.start_date) || '') < f.tFrom) return false;
+      if (skip !== 'tTo'     && f.tTo     && (String(t.start_date) || '') > f.tTo)   return false;
+      return true;
+    });
+  };
+  const eligibleDoerEmails = new Set(filteredTasksExcept('tDoer').map(t => t.doer_email));
+  const eligibleDepts      = new Set(filteredTasksExcept('tDept').map(t => deptForEmail(t.doer_email)).filter(Boolean));
+  const eligibleFreqs      = new Set(filteredTasksExcept('tFreq').map(t => t.frequency));
+  const eligibleTaskNames  = [...new Set(filteredTasksExcept('tSearch').map(t => t.task_name))].sort();
+  // Always keep the currently selected value visible even if narrowing would hide it.
+  if (f.tDoer) eligibleDoerEmails.add(f.tDoer);
+  if (f.tDept) eligibleDepts.add(f.tDept);
+  if (f.tFreq) eligibleFreqs.add(f.tFreq);
+  const doerOptions = visibleDoers.filter(d => eligibleDoerEmails.has(d.email));
+  const deptOptions = [...eligibleDepts].sort();
+  const freqOptions = [...eligibleFreqs].sort();
 
   $('#tasks-filters').innerHTML = `
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1994,7 +2072,7 @@ function renderTasks() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
           <select id="tf-doer" class="bg-transparent outline-none text-sm w-full">
             <option value="">All doers</option>
-            ${visibleDoers.map(d => `<option value="${escapeHtml(d.email)}" ${f.tDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
+            ${doerOptions.map(d => `<option value="${escapeHtml(d.email)}" ${f.tDoer === d.email ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -2005,7 +2083,7 @@ function renderTasks() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">domain</span>
           <select id="tf-dept" class="bg-transparent outline-none text-sm w-full">
             <option value="">All departments</option>
-            ${departments.map(d => `<option value="${escapeHtml(d)}" ${f.tDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+            ${deptOptions.map(d => `<option value="${escapeHtml(d)}" ${f.tDept === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
           </select>
         </div>
       </div>` : ''}
@@ -2020,7 +2098,7 @@ function renderTasks() {
           <span class="material-symbols-outlined text-slate-400 text-[14px] shrink-0">expand_more</span>
         </div>
         <div id="tf-search-list" class="hidden absolute z-50 mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lift max-h-64 overflow-auto py-1">
-          ${[...new Set(baseTasks.map(t => t.task_name))].sort().map(name => `
+          ${eligibleTaskNames.map(name => `
             <button data-value="${escapeHtml(name)}" type="button" class="w-full text-left px-3 py-1.5 text-sm text-slate-700 hover:bg-brand-50 transition truncate">${escapeHtml(name)}</button>
           `).join('')}
         </div>
@@ -2031,7 +2109,7 @@ function renderTasks() {
           <span class="material-symbols-outlined text-slate-400 text-[16px]">repeat</span>
           <select id="tf-freq" class="bg-transparent outline-none text-sm w-full">
             <option value="">All frequencies</option>
-            ${freqsInUse.map(q => `<option value="${escapeHtml(q)}" ${f.tFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
+            ${freqOptions.map(q => `<option value="${escapeHtml(q)}" ${f.tFreq === q ? 'selected' : ''}>${escapeHtml(q)}</option>`).join('')}
           </select>
         </div>
       </div>
