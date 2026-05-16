@@ -3252,11 +3252,13 @@ function renderHeatmap(days) {
           </div>`;
       }).join('')}
     </div>
-    <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] text-slate-500">
+    <div class="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px] text-slate-500">
       <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-emerald-500 shrink-0 mt-0.5"></span><span><b class="text-emerald-700">On-time</b> — all tasks done on or before planned date</span></div>
-      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-amber-400 shrink-0 mt-0.5"></span><span><b class="text-amber-700">Mixed</b> — some on-time, some delayed</span></div>
-      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-red-500 shrink-0 mt-0.5"></span><span><b class="text-red-700">Delayed</b> — every task late or still pending</span></div>
-      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-200 shrink-0 mt-0.5"></span><span><b class="text-slate-500">No tasks</b> — nothing scheduled that day</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-amber-400 shrink-0 mt-0.5"></span><span><b class="text-amber-700">Done (late)</b> — all done, some completed late</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-red-500 shrink-0 mt-0.5"></span><span><b class="text-red-700">Overdue</b> — past date with tasks still pending</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-sky-400 shrink-0 mt-0.5"></span><span><b class="text-sky-700">In progress</b> — today's pending tasks (not delayed yet)</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-300 shrink-0 mt-0.5"></span><span><b class="text-slate-500">Scheduled</b> — future date, not yet due</span></div>
+      <div class="flex items-start gap-1.5"><span class="h-3 w-3 rounded bg-slate-100 shrink-0 mt-0.5"></span><span><b class="text-slate-500">No tasks</b> — nothing scheduled that day</span></div>
     </div>
     <div class="mt-2 text-[10px] uppercase tracking-widest text-slate-400 text-center">
       Each cell: <span class="font-bold text-slate-600">day · done/planned · +avg delay</span> · bottom bar = completion % · hover for full date breakdown · click to drill in
