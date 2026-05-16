@@ -72,6 +72,14 @@ router.post('/', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Editing a task must update the schedule end-to-end:
+//   1. UPDATE the task row.
+//   2. DELETE every non-Done master_checklist row for this task — those
+//      were generated from the OLD schedule and may no longer fit (eg.
+//      frequency changed D→W, start/end shifted, doer reassigned).
+//   3. Re-generate occurrences from the new schedule and insert. Done rows
+//      survive untouched (audit trail), and ON CONFLICT preserves any Done
+//      row that happens to coincide with a new occurrence.
 router.put('/:id', requireAdmin, async (req, res, next) => {
   try {
     const { task_name, doer_email, frequency, start_date, end_date, assigned_by, status } = req.body || {};
@@ -93,9 +101,18 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
       );
       if (r.rowCount === 0) return null;
       const task = r.rows[0];
+
+      // Wipe stale future/pending occurrences (keeps Done rows for history).
+      const removed = await client.query(
+        `delete from master_checklist
+           where task_id = $1 and status != 'Done'
+           returning id`,
+        [task_id]
+      );
+
       const occurrences = generateOccurrences(task);
       const inserted = await upsertOccurrences(client, occurrences);
-      return { task, occurrencesGenerated: occurrences.length, inserted };
+      return { task, occurrencesGenerated: occurrences.length, removed: removed.rowCount, inserted };
     });
 
     if (!result) return res.status(404).json({ error: 'Task not found', code: 404 });
