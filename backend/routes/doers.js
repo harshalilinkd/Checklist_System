@@ -1,6 +1,6 @@
 const express = require('express');
-const { query } = require('../db');
-const { invalidateDoers } = require('../cache');
+const { query, withTx } = require('../db');
+const { invalidateDoers, invalidateMaster, invalidateTasks } = require('../cache');
 const { requireAdmin } = require('../auth');
 
 const router = express.Router();
@@ -24,21 +24,59 @@ router.post('/', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Updating `email` is special: it's the natural FK target from tasks,
+// master_checklist, and archive, and the schema has no ON UPDATE CASCADE.
+// So an email change must repoint every referencing row in a transaction:
+// insert new doer row → update children → delete old doer row.
 router.put('/:id', requireAdmin, async (req, res, next) => {
   try {
     const { name, department, email } = req.body || {};
-    const r = await query(
-      `update doers set
-         name = coalesce($2, name),
-         department = $3,
-         email = coalesce($4, email)
-       where id = $1
-       returning *`,
-      [req.params.id, name, department, email?.toLowerCase()]
-    );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Doer not found', code: 404 });
+    const id = req.params.id;
+    const newEmail = email ? email.toLowerCase() : null;
+
+    const result = await withTx(async (client) => {
+      const existing = await client.query('select * from doers where id = $1', [id]);
+      if (existing.rowCount === 0) return { error: 'Doer not found', code: 404 };
+      const cur = existing.rows[0];
+      const emailChanging = newEmail && newEmail !== cur.email;
+
+      if (!emailChanging) {
+        const r = await client.query(
+          `update doers set name = coalesce($2, name), department = $3
+             where id = $1 returning *`,
+          [id, name, department]
+        );
+        return { row: r.rows[0] };
+      }
+
+      // Verify the new email isn't already taken by another doer
+      const clash = await client.query('select id from doers where email = $1 and id != $2', [newEmail, id]);
+      if (clash.rowCount > 0) {
+        return { error: 'A doer with that email already exists', code: 409 };
+      }
+
+      // 1. Insert new row with the new email (keeps FK valid for the next step)
+      const ins = await client.query(
+        `insert into doers (name, department, email) values ($1, $2, $3) returning *`,
+        [name || cur.name, department !== undefined ? department : cur.department, newEmail]
+      );
+
+      // 2. Repoint every referencing row to the new email
+      await client.query('update tasks set doer_email = $1 where doer_email = $2', [newEmail, cur.email]);
+      await client.query('update master_checklist set doer_email = $1 where doer_email = $2', [newEmail, cur.email]);
+      await client.query('update archive set doer_email = $1 where doer_email = $2', [newEmail, cur.email]);
+
+      // 3. Delete the old doer row (FK refs are now all pointing to the new row)
+      await client.query('delete from doers where id = $1', [id]);
+
+      return { row: ins.rows[0] };
+    });
+
+    if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
     invalidateDoers();
-    res.json(r.rows[0]);
+    invalidateTasks();
+    invalidateMaster();
+    res.json(result.row);
   } catch (e) { next(e); }
 });
 
