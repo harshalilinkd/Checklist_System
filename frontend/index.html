@@ -2951,9 +2951,12 @@ function showDayHoverCard(cell, d) {
   const pct = total ? Math.round((done / total) * 100) : 0;
   let statusColor = 'bg-slate-400', statusText = 'No tasks';
   if (total > 0) {
-    if (delayed === 0)             { statusColor = 'bg-emerald-500'; statusText = 'All on-time'; }
-    else if (delayed < total)      { statusColor = 'bg-amber-500';   statusText = 'Mixed'; }
-    else                           { statusColor = 'bg-red-500';     statusText = 'Needs attention'; }
+    const todayIso = _fmtLocalIso(new Date());
+    const isPastOrToday = d.date <= todayIso;
+    if (pending === 0 && delayed === 0)        { statusColor = 'bg-emerald-500'; statusText = 'All on-time'; }
+    else if (pending === 0)                     { statusColor = 'bg-amber-500';   statusText = 'Done (some late)'; }
+    else if (isPastOrToday)                     { statusColor = 'bg-red-500';     statusText = 'Needs attention'; }
+    else                                        { statusColor = 'bg-slate-400';   statusText = 'Scheduled'; }
   }
   card.innerHTML = `
     <div class="flex items-center gap-2 mb-2">
@@ -3183,6 +3186,7 @@ function renderHeatmap(days) {
   const first = new Date(days[0].date);
   const startWd = (first.getDay() + 6) % 7; // 0 = Mon
   const cells = Array.from({ length: startWd }).map(() => null).concat(days);
+  const todayIso = _fmtLocalIso(new Date());
   return `
     <div class="grid grid-cols-7 gap-1.5 text-center">
       ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => `<div class="text-[9px] uppercase tracking-widest text-slate-400">${d}</div>`).join('')}
@@ -3191,9 +3195,12 @@ function renderHeatmap(days) {
         let color = 'bg-slate-100';
         let pillBg = 'bg-white/25';
         if (c.total > 0) {
-          if (c.delayed === 0)              { color = 'bg-emerald-500'; pillBg = 'bg-emerald-800/30'; }
-          else if (c.delayed < c.total)     { color = 'bg-amber-400';   pillBg = 'bg-amber-800/30'; }
-          else                              { color = 'bg-red-500';     pillBg = 'bg-red-800/30'; }
+          const pending = c.total - c.done;
+          const isPastOrToday = c.date <= todayIso;
+          if (pending === 0 && c.delayed === 0)        { color = 'bg-emerald-500'; pillBg = 'bg-emerald-800/30'; }  // all done on-time
+          else if (pending === 0)                       { color = 'bg-amber-400';   pillBg = 'bg-amber-800/30'; }   // all done, some late
+          else if (isPastOrToday)                       { color = 'bg-red-500';     pillBg = 'bg-red-800/30'; }     // overdue/today pending
+          else                                          { color = 'bg-slate-300';   pillBg = 'bg-slate-600/30'; }   // future, scheduled
         }
         const d = new Date(c.date);
         const day = d.getDate();
