@@ -2952,10 +2952,12 @@ function showDayHoverCard(cell, d) {
   let statusColor = 'bg-slate-400', statusText = 'No tasks';
   if (total > 0) {
     const todayIso = _fmtLocalIso(new Date());
-    const isPastOrToday = d.date <= todayIso;
+    const isPast  = d.date < todayIso;
+    const isToday = d.date === todayIso;
     if (pending === 0 && delayed === 0)        { statusColor = 'bg-emerald-500'; statusText = 'All on-time'; }
     else if (pending === 0)                     { statusColor = 'bg-amber-500';   statusText = 'Done (some late)'; }
-    else if (isPastOrToday)                     { statusColor = 'bg-red-500';     statusText = 'Needs attention'; }
+    else if (isPast)                            { statusColor = 'bg-red-500';     statusText = 'Overdue'; }
+    else if (isToday)                           { statusColor = 'bg-sky-500';     statusText = 'In progress'; }
     else                                        { statusColor = 'bg-slate-400';   statusText = 'Scheduled'; }
   }
   card.innerHTML = `
@@ -3196,10 +3198,12 @@ function renderHeatmap(days) {
         let pillBg = 'bg-white/25';
         if (c.total > 0) {
           const pending = c.total - c.done;
-          const isPastOrToday = c.date <= todayIso;
+          const isPast   = c.date < todayIso;
+          const isToday  = c.date === todayIso;
           if (pending === 0 && c.delayed === 0)        { color = 'bg-emerald-500'; pillBg = 'bg-emerald-800/30'; }  // all done on-time
           else if (pending === 0)                       { color = 'bg-amber-400';   pillBg = 'bg-amber-800/30'; }   // all done, some late
-          else if (isPastOrToday)                       { color = 'bg-red-500';     pillBg = 'bg-red-800/30'; }     // overdue/today pending
+          else if (isPast)                              { color = 'bg-red-500';     pillBg = 'bg-red-800/30'; }     // overdue
+          else if (isToday)                             { color = 'bg-sky-400';     pillBg = 'bg-sky-800/30'; }     // ongoing today
           else                                          { color = 'bg-slate-300';   pillBg = 'bg-slate-600/30'; }   // future, scheduled
         }
         const d = new Date(c.date);
