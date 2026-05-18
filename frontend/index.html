@@ -196,7 +196,7 @@
     @page { margin: 12mm; size: A4 portrait; }
     /* Hide page chrome */
     nav, #login-screen, #toast-container, #modal-root, #loading-overlay,
-    #view-dashboard, #view-master, #view-tasks, #view-doers,
+    #view-dashboard, #view-master, #view-tasks, #view-doers, #view-holidays,
     #sc-controls, #sc-presets, #sc-print, #sc-export { display: none !important; }
     /* Force white backgrounds + remove fancy effects */
     body, main { background: white !important; }
@@ -625,6 +625,37 @@
       </div>
     </section>
 
+    <section id="view-holidays" hidden class="space-y-5">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-brand-500">Calendar</p>
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900 mt-1">Holidays</h2>
+          <p class="text-sm text-slate-500 mt-1.5">Dates the occurrence generator skips. Sundays are always excluded — list any extra holidays here.</p>
+        </div>
+        <button id="holiday-add-btn" class="flex items-center gap-1.5 bg-brand hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-sm">
+          <span class="material-symbols-outlined text-[18px]">event_available</span>
+          <span>New holiday</span>
+        </button>
+      </div>
+
+      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-[20px] shadow-card overflow-hidden">
+        <div class="overflow-auto max-h-[70vh]">
+          <table class="min-w-full text-sm">
+            <thead class="sticky-head">
+              <tr class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                <th class="text-left px-5 py-3 border-b border-slate-200">Date</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Weekday</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Name</th>
+                <th class="text-right px-5 py-3 border-b border-slate-200">Action</th>
+              </tr>
+            </thead>
+            <tbody id="holidays-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40 text-[11px] uppercase tracking-widest text-slate-500" id="holidays-count">— holidays</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -998,6 +1029,7 @@ function renderTabs() {
     { id: 'scorecard', label: 'Scorecards',       icon: 'workspace_premium', adminOnly: true  },
     { id: 'tasks',     label: 'Tasks',            icon: 'task',              adminOnly: true  },
     { id: 'doers',     label: 'Doers',            icon: 'group',             adminOnly: true  },
+    { id: 'holidays',  label: 'Holidays',         icon: 'event_available',   adminOnly: true  },
   ];
   const isAdmin = state.user?.isAdmin;
   const tabs = allTabs.filter(t => !t.adminOnly || isAdmin);
@@ -1014,16 +1046,16 @@ function renderTabs() {
 
 function switchView(id) {
   // Defense in depth: non-admins can't open admin-only views even via direct call
-  const adminOnly = ['dashboard', 'scorecard', 'tasks', 'doers'];
+  const adminOnly = ['dashboard', 'scorecard', 'tasks', 'doers', 'holidays'];
   if (adminOnly.includes(id) && !state.user?.isAdmin) id = 'master';
 
   // Progress flash so the user sees "something is happening" on tab change.
   // Min-duration logic in the loader ensures even instant switches show the pill.
-  const labels = { dashboard: 'Loading dashboard…', master: 'Loading checklist…', scorecard: 'Loading scorecard…', tasks: 'Loading tasks…', doers: 'Loading doers…' };
+  const labels = { dashboard: 'Loading dashboard…', master: 'Loading checklist…', scorecard: 'Loading scorecard…', tasks: 'Loading tasks…', doers: 'Loading doers…', holidays: 'Loading holidays…' };
   flashTopLoader(550, labels[id] || 'Loading…');
 
   state.activeView = id;
-  ['dashboard', 'master', 'scorecard', 'tasks', 'doers'].forEach(v => {
+  ['dashboard', 'master', 'scorecard', 'tasks', 'doers', 'holidays'].forEach(v => {
     const el = $('#view-' + v);
     if (el) el.hidden = (v !== id);
   });
@@ -1034,6 +1066,7 @@ function switchView(id) {
   if (id === 'scorecard') renderScorecard();
   if (id === 'tasks')     renderTasks();
   if (id === 'doers')     renderDoers();
+  if (id === 'holidays')  renderHolidays();
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────
@@ -3498,6 +3531,79 @@ async function deleteDoer(id) {
     toast('Doer deleted', 'success');
     await refreshBootstrap();
     switchView('doers');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ─── HOLIDAYS ─────────────────────────────────────────────────────────
+state.holidays = [];
+
+async function renderHolidays() {
+  if (!state.user?.isAdmin) return;
+  try {
+    state.holidays = await api('/api/holidays');
+  } catch (err) { toast(err.message, 'error'); state.holidays = []; }
+
+  const rows = state.holidays;
+  $('#holidays-count').textContent = `${rows.length} of ${rows.length} HOLIDAY${rows.length === 1 ? '' : 'S'}`;
+  $('#holidays-tbody').innerHTML = rows.length === 0 ? `
+    <tr><td colspan="4" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">event_busy</span>No holidays configured yet. Sundays are still excluded automatically.</td></tr>
+  ` : rows.map(h => {
+    const dt = new Date(h.date);
+    const weekday = dt.toLocaleDateString('en-US', { weekday: 'long' });
+    return `
+    <tr class="hover:bg-slate-50 transition">
+      <td class="px-5 py-3 text-sm font-medium text-slate-900 num">${escapeHtml(fmtDate(h.date))}</td>
+      <td class="px-5 py-3 text-sm text-slate-600">${escapeHtml(weekday)}</td>
+      <td class="px-5 py-3 text-sm text-slate-700">${escapeHtml(h.name || '—')}</td>
+      <td class="px-5 py-3 text-right">
+        <button data-edit="${h.id}" class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition mr-1"><span class="material-symbols-outlined text-[14px]">edit</span>Edit</button>
+        <button data-del="${h.id}"  class="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">delete</span></button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  $$('#holidays-tbody [data-edit]').forEach(b => b.addEventListener('click', () => openHolidayModal(state.holidays.find(x => String(x.id) === b.dataset.edit))));
+  $$('#holidays-tbody [data-del]').forEach(b => b.addEventListener('click', () => deleteHoliday(b.dataset.del)));
+}
+
+$('#holiday-add-btn').addEventListener('click', () => openHolidayModal());
+
+function openHolidayModal(holiday) {
+  const isEdit = !!holiday;
+  modal(`${isEdit ? 'Edit' : 'New'} holiday`, `
+    <form id="holiday-form" class="space-y-3">
+      <label class="block">
+        <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Date</span>
+        <input name="date" type="date" required value="${escapeHtml(holiday?.date || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <label class="block">
+        <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Name</span>
+        <input name="name" value="${escapeHtml(holiday?.name || '')}" placeholder="e.g. Christmas" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+      </label>
+      <p class="text-[10px] text-slate-400 leading-relaxed">Saving will refresh the in-memory exclusion list. Existing scheduled (non-Done) rows on this date will be removed and tasks regenerate around it.</p>
+    </form>
+  `, async () => {
+    const f = new FormData($('#holiday-form'));
+    const body = Object.fromEntries(f.entries());
+    if (!body.date) { toast('Date is required', 'error'); return false; }
+    try {
+      await api('/api/holidays', { method: 'POST', body: JSON.stringify(body) });
+      toast(isEdit ? 'Holiday updated' : 'Holiday added', 'success');
+      await refreshBootstrap();
+      renderHolidays();
+      return true;
+    } catch (err) { toast(err.message, 'error'); return false; }
+  });
+}
+
+async function deleteHoliday(id) {
+  const h = state.holidays.find(x => String(x.id) === String(id));
+  if (!confirm(`Remove holiday ${h ? fmtDate(h.date) + ' (' + (h.name || 'unnamed') + ')' : ''}?`)) return;
+  try {
+    await api('/api/holidays/' + id, { method: 'DELETE' });
+    toast('Holiday removed', 'success');
+    await refreshBootstrap();
+    renderHolidays();
   } catch (err) { toast(err.message, 'error'); }
 }
 
