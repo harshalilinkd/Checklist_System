@@ -2317,6 +2317,7 @@ function openTaskModal(task) {
       </label>` : ''}
       <label id="task-doer-field"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</span>
         <select name="doer_email" required class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
+          ${isEdit ? '' : '<option value="" disabled selected>Select a doer…</option>'}
           ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${task?.doer_email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.email)})</option>`).join('')}
         </select>
       </label>
