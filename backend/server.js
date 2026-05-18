@@ -15,8 +15,18 @@ const tasksRoute = require('./routes/tasks');
 const doersRoute = require('./routes/doers');
 const adminRoute = require('./routes/admin');
 const scorecardRoute = require('./routes/scorecard');
+const holidaysRoute = require('./routes/holidays');
 const { runArchiveJob } = require('./jobs/archive');
 const { runExtendJob } = require('./jobs/extend-occurrences');
+const { query } = require('./db');
+const { reloadHolidays } = require('./lib/occurrences');
+
+// Populate the in-memory holiday set from the `holidays` table at startup.
+// In serverless this runs per cold-start; in long-lived processes admin can
+// trigger a refresh via POST /api/admin/holidays/reload.
+reloadHolidays(query)
+  .then(n => console.log(`Loaded ${n} holiday(s) from DB`))
+  .catch(e => console.error('Failed to load holidays:', e.message));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,6 +76,7 @@ app.use('/api/doers',     requireAuth, doersRoute);
 // The route file does its own auth for those sub-paths.
 app.use('/api/admin',     (req, res, next) => req.path.startsWith('/cron/') ? next() : requireAuth(req, res, next), adminRoute);
 app.use('/api/scorecard', requireAuth, scorecardRoute);
+app.use('/api/holidays',  requireAuth, holidaysRoute);
 
 // Error handler — runs for any next(err) above.
 app.use((err, req, res, next) => {

@@ -50,7 +50,20 @@ create table if not exists master_checklist (
 );
 
 -- ---------------------------------------------------------------------------
--- 4. archive (same shape as master_checklist + archived_at)
+-- 4. holidays — non-working days the occurrence generator excludes.
+-- Sundays are always excluded by the generator independently; this table
+-- holds extra holidays (Republic Day, Diwali, etc.) and is editable by admin.
+-- ---------------------------------------------------------------------------
+create table if not exists holidays (
+  id            serial primary key,
+  holiday_date  date unique not null,
+  name          text,
+  created_at    timestamptz not null default now()
+);
+create index if not exists idx_holidays_date on holidays(holiday_date);
+
+-- ---------------------------------------------------------------------------
+-- 5. archive (same shape as master_checklist + archived_at)
 -- ---------------------------------------------------------------------------
 create table if not exists archive (
   id              bigserial primary key,

@@ -12,21 +12,16 @@ const { addDays, addMonths, parseISO, format, getDay, getDate } = require('date-
 const FY_START = process.env.FY_START || '2026-04-01';
 const FY_END   = process.env.FY_END   || '2027-03-31';
 
-// Non-working days: every Sunday plus this fixed holiday list. Occurrences
-// that land on any of these dates are dropped from the generated schedule.
-const HOLIDAYS = new Set([
-  '2026-01-26', // Republic Day
-  '2026-02-15', // Maha Shiv Ratri (Sunday)
-  '2026-03-03', // Holi 2nd day
-  '2026-03-19', // Gudi Padwa
-  '2026-05-01', // Maharashtra Day
-  '2026-08-15', // Independence Day
-  '2026-08-28', // Rakshabandhan
-  '2026-09-14', // Ganesh Chaturthi
-  '2026-10-20', // Dussehra
-  '2026-11-08', // Laxmi Pujan (Sunday)
-  '2026-11-10', // New Year
-]);
+// Non-working days: every Sunday plus the rows in the `holidays` DB table.
+// The set is cached in memory and refreshed on startup + via
+// reloadHolidays() (which the admin route POST /api/admin/holidays/reload
+// calls after any insert/delete).
+let HOLIDAYS = new Set();
+async function reloadHolidays(query) {
+  const r = await query("select to_char(holiday_date, 'YYYY-MM-DD') as d from holidays");
+  HOLIDAYS = new Set(r.rows.map(x => x.d));
+  return HOLIDAYS.size;
+}
 function isWorkingDay(iso) {
   if (HOLIDAYS.has(iso)) return false;
   // parseISO gives local midnight; getDay() = 0 on Sunday.
@@ -149,4 +144,4 @@ function generateOccurrences(task, opts = {}) {
   }));
 }
 
-module.exports = { generateOccurrences, FY_START, FY_END, HOLIDAYS, isWorkingDay };
+module.exports = { generateOccurrences, FY_START, FY_END, isWorkingDay, reloadHolidays, getHolidays: () => HOLIDAYS };
