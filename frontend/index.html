@@ -313,34 +313,34 @@
 
   <!-- Top navigation -->
   <nav class="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-slate-200/70">
-    <div class="max-w-[1500px] mx-auto px-6 h-28 flex items-center gap-6">
+    <div class="max-w-[1500px] mx-auto px-3 md:px-6 h-16 md:h-28 flex items-center gap-3 md:gap-6">
 
-      <!-- Logo: stacked image centered above the label -->
-      <a class="flex flex-col items-center select-none leading-none gap-1.5 shrink-0">
-        <img src="logo.png" alt="LinkD" class="h-16 w-auto object-contain" onerror="this.style.display='none'; document.getElementById('brand-fallback')?.classList.remove('hidden');" />
-        <div id="brand-fallback" class="hidden h-14 w-14 rounded-xl bg-brand text-white grid place-items-center shadow-sm">
-          <span class="material-symbols-outlined text-[26px]">checklist</span>
+      <!-- Logo: compact horizontal on mobile, stacked on desktop -->
+      <a class="flex md:flex-col items-center select-none leading-none gap-2 md:gap-1.5 shrink-0">
+        <img src="logo.png" alt="LinkD" class="h-9 md:h-16 w-auto object-contain" onerror="this.style.display='none'; document.getElementById('brand-fallback')?.classList.remove('hidden');" />
+        <div id="brand-fallback" class="hidden h-9 w-9 md:h-14 md:w-14 rounded-xl bg-brand text-white grid place-items-center shadow-sm">
+          <span class="material-symbols-outlined text-[20px] md:text-[26px]">checklist</span>
         </div>
-        <div class="text-lg font-bold text-slate-900 tracking-tight">Checklist System</div>
+        <div class="text-sm md:text-lg font-bold text-slate-900 tracking-tight">Checklist System</div>
       </a>
 
-      <!-- Tabs -->
-      <div id="tabs" class="flex items-center gap-1 ml-4">
+      <!-- Tabs: inline on desktop, populated identically by JS on mobile inside #tabs-mobile (bottom bar) -->
+      <div id="tabs" class="hidden md:flex items-center gap-1 ml-4">
         <!-- populated by JS -->
       </div>
 
       <!-- Right side -->
-      <div class="ml-auto flex items-center gap-2">
-        <button id="sync-btn" class="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-brand hover:bg-brand-50 px-3 py-2 rounded-xl transition">
+      <div class="ml-auto flex items-center gap-1 md:gap-2">
+        <button id="sync-btn" class="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-brand hover:bg-brand-50 px-2 md:px-3 py-2 rounded-xl transition">
           <span class="material-symbols-outlined text-[18px]" id="sync-icon">sync</span>
-          <span>Sync</span>
+          <span class="hidden sm:inline">Sync</span>
         </button>
 
-        <div class="h-7 w-px bg-slate-200 mx-1"></div>
+        <div class="hidden md:block h-7 w-px bg-slate-200 mx-1"></div>
 
         <div class="flex items-center gap-2.5">
           <div class="h-8 w-8 rounded-full bg-gradient-to-br from-brand-300 to-brand grid place-items-center text-white text-xs font-semibold" id="user-initials">--</div>
-          <div class="leading-tight hidden sm:block">
+          <div class="leading-tight hidden md:block">
             <div class="text-xs font-semibold text-slate-800" id="user-email">—</div>
             <div class="text-[10px] uppercase tracking-widest text-slate-400" id="user-role">—</div>
           </div>
@@ -353,8 +353,13 @@
     </div>
   </nav>
 
+  <!-- Mobile bottom navigation: same tab data, icon-first layout, populated by renderTabs() -->
+  <nav id="tabs-mobile-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+    <div id="tabs-mobile" class="grid grid-cols-3 sm:grid-cols-6 gap-0.5 px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]"></div>
+  </nav>
+
   <!-- View container -->
-  <main class="max-w-[1500px] mx-auto px-6 py-5">
+  <main class="max-w-[1500px] mx-auto px-3 md:px-6 py-3 md:py-5 pb-24 md:pb-5">
 
     <!-- ═════════════════════ DASHBOARD VIEW ═════════════════════ -->
     <section id="view-dashboard" hidden class="space-y-3">
@@ -1048,6 +1053,7 @@ function renderTabs() {
   const isAdmin = state.user?.isAdmin;
   const tabs = allTabs.filter(t => !t.adminOnly || isAdmin);
 
+  // Desktop horizontal tabs
   $('#tabs').innerHTML = tabs.map(t => `
     <button data-view="${t.id}" class="relative flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition ${state.activeView === t.id ? 'tab-active' : ''}">
       <span class="material-symbols-outlined text-[18px]">${t.icon}</span>
@@ -1055,7 +1061,20 @@ function renderTabs() {
     </button>
   `).join('');
 
-  $$('#tabs button').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
+  // Mobile bottom bar — icon on top, label shrunk below, same data-view contract
+  const mobileBar = $('#tabs-mobile');
+  if (mobileBar) {
+    // 1 col per tab so a non-admin with only Master also fits cleanly
+    mobileBar.style.gridTemplateColumns = `repeat(${Math.min(tabs.length, 6)}, minmax(0, 1fr))`;
+    mobileBar.innerHTML = tabs.map(t => `
+      <button data-view="${t.id}" class="flex flex-col items-center gap-0.5 text-[10px] font-semibold py-1.5 rounded-lg transition ${state.activeView === t.id ? 'text-brand bg-brand-50' : 'text-slate-500 hover:text-slate-800'}">
+        <span class="material-symbols-outlined text-[20px]">${t.icon}</span>
+        <span class="leading-none truncate max-w-full px-1">${t.label}</span>
+      </button>
+    `).join('');
+  }
+
+  $$('#tabs button, #tabs-mobile button').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
 }
 
 function switchView(id) {
