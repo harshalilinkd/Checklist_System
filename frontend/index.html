@@ -806,10 +806,24 @@ async function api(path, opts = {}) {
               :                                'Loading…';
   showTopLoader(label);
   try {
+    // Recover a stale session from Supabase's own store before failing —
+    // covers the case where state.session got cleared but a valid token
+    // is still cached (eg. after a silent refresh).
+    let session = state.session;
+    if (!session?.access_token) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) { state.session = data.session; session = data.session; }
+      } catch {}
+    }
+    if (!session?.access_token) {
+      logout();
+      throw new Error('Session expired — please sign in again');
+    }
     const headers = {
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
-      Authorization: 'Bearer ' + state.session.access_token,
+      Authorization: 'Bearer ' + session.access_token,
     };
     const res = await fetch(API_BASE + path, { ...opts, headers });
     if (res.status === 401) { logout(); throw new Error('Session expired'); }
