@@ -1690,7 +1690,17 @@ function renderMaster() {
   const wire = (id, key) => $('#' + id)?.addEventListener('change', e => { state.filters[key] = e.target.value; renderMaster(); });
   wire('mf-dept', 'mDept');
   wire('mf-freq', 'mFreq');
-  wire('mf-status', 'mStatus'); wire('mf-from', 'mFrom'); wire('mf-to', 'mTo');
+  wire('mf-status', 'mStatus');
+  // Picking a From/To date overrides the default "Today" status filter —
+  // otherwise asking for a future date with Status=Today returns nothing.
+  // User can still re-apply a status filter after picking the date.
+  const wireDate = (id, key) => $('#' + id)?.addEventListener('change', e => {
+    state.filters[key] = e.target.value;
+    if (e.target.value) state.filters.mStatus = '';
+    renderMaster();
+  });
+  wireDate('mf-from', 'mFrom');
+  wireDate('mf-to',   'mTo');
 
   // Combobox: search-as-you-type + dropdown of suggestions (Doer + Task)
   const wireCombobox = (id, key, wrapId, listId) => {
