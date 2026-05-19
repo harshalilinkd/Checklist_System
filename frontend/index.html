@@ -79,14 +79,16 @@
   }
   @keyframes shimmer { 0% { background-position: -800px 0; } 100% { background-position: 800px 0; } }
 
-  /* Donut chart slot — CSS conic-gradient written by JS */
+  /* Donut chart slot — CSS conic-gradient written by JS. Fluid size so the
+     chart scales with the card instead of leaving dead space on wide
+     screens or overflowing on narrow ones. */
   .donut {
-    width: 180px; height: 180px; border-radius: 9999px; position: relative;
+    width: clamp(170px, 16vw, 220px); aspect-ratio: 1; border-radius: 9999px; position: relative;
     background: conic-gradient(#e2e8f0 0% 100%);
     transition: background 0.5s ease;
   }
   .donut::after {
-    content: ''; position: absolute; inset: 22px; background: #fff; border-radius: 9999px;
+    content: ''; position: absolute; inset: 14%; background: #fff; border-radius: 9999px;
     box-shadow: inset 0 0 0 1px rgba(15,23,42,0.04);
   }
 
@@ -437,7 +439,10 @@
             </div>
             <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="Live"></span>
           </div>
-          <div class="flex items-center gap-5">
+          <!-- flex-1 makes the chart row absorb the column's spare height so
+               the donut/legend centers in the card instead of leaving a gap
+               above the bottom strip. -->
+          <div class="flex-1 flex items-center gap-5 min-h-0">
             <div class="relative shrink-0">
               <div id="donut" class="donut"></div>
               <div class="absolute inset-0 grid place-items-center pointer-events-none">
@@ -453,7 +458,7 @@
             </div>
           </div>
           <!-- Bottom strip: dominant status -->
-          <div class="mt-auto pt-5 border-t border-slate-100 grid grid-cols-2 gap-3" id="donut-strip">
+          <div class="pt-5 border-t border-slate-100 grid grid-cols-2 gap-3" id="donut-strip">
             <!-- injected -->
           </div>
         </div>
