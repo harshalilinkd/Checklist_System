@@ -3547,7 +3547,7 @@ $('#doer-add-btn').addEventListener('click', () => openDoerModal());
 function openDoerModal(doer) {
   const isEdit = !!doer;
   modal(`${isEdit ? 'Edit' : 'New'} doer`, `
-    <form id="doer-form" class="space-y-3">
+    <form id="doer-form" class="space-y-3" autocomplete="off">
       <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Name</span>
         <input name="name" required value="${escapeHtml(doer?.name || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
       </label>
@@ -3557,14 +3557,27 @@ function openDoerModal(doer) {
       <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Email</span>
         <input name="email" type="email" required value="${escapeHtml(doer?.email || '')}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
       </label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Role</span>
+          <select name="role" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
+            <option value="user"  ${doer?.role === 'user'  ? 'selected' : ''}>User</option>
+            <option value="admin" ${doer?.role === 'admin' ? 'selected' : ''}>Admin</option>
+          </select>
+        </label>
+        <label class="block"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">${isEdit ? 'New password (optional)' : 'Initial password'}</span>
+          <input name="password" type="password" autocomplete="new-password" ${isEdit ? '' : 'required'} minlength="6" placeholder="${isEdit ? 'Leave blank to keep' : 'Min 6 chars'}" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20" />
+        </label>
+      </div>
+      <p class="text-[10px] text-slate-400 leading-relaxed">${isEdit ? 'Updating email or password rewrites the Supabase Auth account. Role change re-flags admin permissions immediately.' : 'A Supabase Auth account is created so this person can log in (email + password, or with Google if their email matches).'}</p>
     </form>
   `, async () => {
     const f = new FormData($('#doer-form'));
     const body = Object.fromEntries(f.entries());
+    if (!body.password) delete body.password;
     try {
       if (isEdit) await api('/api/doers/' + doer.id, { method: 'PUT', body: JSON.stringify(body) });
       else        await api('/api/doers',            { method: 'POST', body: JSON.stringify(body) });
-      toast(isEdit ? 'Doer updated' : 'Doer created', 'success');
+      toast(isEdit ? 'Doer updated' : 'Doer created · auth account ready', 'success');
       await refreshBootstrap();
       switchView('doers');
       return true;

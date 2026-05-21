@@ -2,14 +2,21 @@ const express = require('express');
 const { query, withTx } = require('../db');
 const { invalidateDoers, invalidateMaster, invalidateTasks } = require('../cache');
 const { requireAdmin } = require('../auth');
+const { upsertAuthUser, changeAuthEmail, deleteAuthUser } = require('../lib/supabase-admin');
 
 const router = express.Router();
 
+// Creating a doer also provisions their Supabase Auth account so they can
+// log in immediately (email + password or Google with the same email). Role
+// is stored in user_metadata.role; admin === 'admin'.
 router.post('/', requireAdmin, async (req, res, next) => {
   try {
-    const { name, department, email } = req.body || {};
+    const { name, department, email, password, role } = req.body || {};
     if (!name || !email) {
       return res.status(400).json({ error: 'name and email are required', code: 400 });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'password is required when creating a doer (used for the auth account)', code: 400 });
     }
     const r = await query(
       `insert into doers (name, department, email)
@@ -19,8 +26,18 @@ router.post('/', requireAdmin, async (req, res, next) => {
        returning *`,
       [name, department || null, email.toLowerCase()]
     );
+    // Provision/refresh Supabase Auth account (idempotent — updates if exists).
+    let authResult = null;
+    try {
+      authResult = await upsertAuthUser({ email, password, name, role });
+    } catch (authErr) {
+      // Don't fail the whole request — the doer row exists and is functional;
+      // log the auth issue so admin can retry the password set later.
+      console.error('Auth provisioning failed for', email, '-', authErr.message);
+      authResult = { error: authErr.message };
+    }
     invalidateDoers();
-    res.json(r.rows[0]);
+    res.json({ ...r.rows[0], auth: authResult });
   } catch (e) { next(e); }
 });
 
@@ -30,7 +47,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
 // insert new doer row → update children → delete old doer row.
 router.put('/:id', requireAdmin, async (req, res, next) => {
   try {
-    const { name, department, email } = req.body || {};
+    const { name, department, email, password, role } = req.body || {};
     const id = req.params.id;
     const newEmail = email ? email.toLowerCase() : null;
 
@@ -46,7 +63,7 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
              where id = $1 returning *`,
           [id, name, department]
         );
-        return { row: r.rows[0] };
+        return { row: r.rows[0], prevEmail: cur.email };
       }
 
       // Verify the new email isn't already taken by another doer
@@ -69,14 +86,34 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
       // 3. Delete the old doer row (FK refs are now all pointing to the new row)
       await client.query('delete from doers where id = $1', [id]);
 
-      return { row: ins.rows[0] };
+      return { row: ins.rows[0], prevEmail: cur.email, emailChanged: true };
     });
 
     if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
+
+    // Mirror to Supabase Auth. Failures here don't reverse the doer change
+    // (the table is still consistent) but are logged + surfaced in response.
+    let auth = null;
+    try {
+      if (result.emailChanged) {
+        // Swap the auth account's email, then update metadata/password.
+        await changeAuthEmail(result.prevEmail, result.row.email).catch(() => null);
+      }
+      auth = await upsertAuthUser({
+        email: result.row.email,
+        password: password || undefined,
+        name: result.row.name,
+        role,
+      });
+    } catch (authErr) {
+      console.error('Auth update failed for', result.row.email, '-', authErr.message);
+      auth = { error: authErr.message };
+    }
+
     invalidateDoers();
     invalidateTasks();
     invalidateMaster();
-    res.json(result.row);
+    res.json({ ...result.row, auth });
   } catch (e) { next(e); }
 });
 
@@ -89,10 +126,14 @@ router.delete('/:id', requireAdmin, async (req, res, next) => {
     if (refs.rows[0].n > 0) {
       return res.status(409).json({ error: `Doer has ${refs.rows[0].n} tasks; reassign or delete them first`, code: 409 });
     }
-    const r = await query('delete from doers where id = $1 returning id', [req.params.id]);
+    const r = await query('delete from doers where id = $1 returning id, email', [req.params.id]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Doer not found', code: 404 });
+    // Also tear down the matching Supabase Auth account so they can't sign in.
+    let auth = null;
+    try { auth = await deleteAuthUser(r.rows[0].email); }
+    catch (e) { console.error('Auth delete failed for', r.rows[0].email, '-', e.message); auth = { error: e.message }; }
     invalidateDoers();
-    res.json({ deleted: r.rows[0].id });
+    res.json({ deleted: r.rows[0].id, auth });
   } catch (e) { next(e); }
 });
 
