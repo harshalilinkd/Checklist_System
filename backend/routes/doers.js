@@ -1,10 +1,38 @@
 const express = require('express');
-const { query, withTx } = require('../db');
+const { query, withTx, TODAY_SQL } = require('../db');
 const { invalidateDoers, invalidateMaster, invalidateTasks } = require('../cache');
 const { requireAdmin } = require('../auth');
 const { upsertAuthUser, changeAuthEmail, deleteAuthUser } = require('../lib/supabase-admin');
+const { generateOccurrences } = require('../lib/occurrences');
 
 const router = express.Router();
+
+// Bulk-insert generated occurrences, skipping any that already exist. Mirrors
+// the helper in routes/tasks.js so reactivation regenerates the same way a
+// task create does.
+async function upsertOccurrences(client, occurrences) {
+  if (occurrences.length === 0) return 0;
+  const BATCH = 500;
+  let inserted = 0;
+  for (let i = 0; i < occurrences.length; i += BATCH) {
+    const slice = occurrences.slice(i, i + BATCH);
+    const cols = ['occurrence_key', 'task_id', 'doer_email', 'planned_date', 'freq', 'status'];
+    const params = [];
+    const tuples = slice.map((row, rIdx) => {
+      const placeholders = cols.map((_, cIdx) => `$${rIdx * cols.length + cIdx + 1}`);
+      params.push(...cols.map(c => row[c]));
+      return `(${placeholders.join(', ')})`;
+    });
+    const sql = `
+      insert into master_checklist (${cols.join(', ')})
+      values ${tuples.join(', ')}
+      on conflict (occurrence_key) do nothing
+    `;
+    const r = await client.query(sql, params);
+    inserted += r.rowCount;
+  }
+  return inserted;
+}
 
 // Creating a doer also provisions their Supabase Auth account so they can
 // log in immediately (email + password or Google with the same email). Role
@@ -114,6 +142,76 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
     invalidateTasks();
     invalidateMaster();
     res.json({ ...result.row, auth });
+  } catch (e) { next(e); }
+});
+
+// Deactivate / reactivate a doer (e.g. someone leaves the company).
+// This is a SOFT stop — it never touches Done rows, so completed history and
+// scorecard stats survive untouched.
+//
+//   Deactivate: mark the doer Inactive and DELETE every non-Done occurrence
+//               (future + still-pending) so no further work is scheduled or
+//               shown. The weekly extend job also skips inactive doers, so
+//               nothing regenerates.
+//   Reactivate: mark the doer Active and regenerate occurrences for each of
+//               their active tasks (FY-clamped, holidays excluded). Done rows
+//               that survived are preserved via ON CONFLICT DO NOTHING.
+router.patch('/:id/status', requireAdmin, async (req, res, next) => {
+  try {
+    const { status } = req.body || {};
+    if (status !== 'Active' && status !== 'Inactive') {
+      return res.status(400).json({ error: "status must be 'Active' or 'Inactive'", code: 400 });
+    }
+
+    const result = await withTx(async (client) => {
+      const existing = await client.query('select * from doers where id = $1', [req.params.id]);
+      if (existing.rowCount === 0) return { error: 'Doer not found', code: 404 };
+      const doer = existing.rows[0];
+      if (doer.status === status) {
+        return { row: doer, unchanged: true };
+      }
+
+      const upd = await client.query(
+        'update doers set status = $2 where id = $1 returning *',
+        [req.params.id, status]
+      );
+
+      if (status === 'Inactive') {
+        // Stop future work: remove all non-Done occurrences for this doer.
+        const removed = await client.query(
+          `delete from master_checklist
+             where doer_email = $1 and status != 'Done'
+             returning id`,
+          [doer.email]
+        );
+        return { row: upd.rows[0], removed: removed.rowCount };
+      }
+
+      // Reactivate: regenerate occurrences for each active task, but only from
+      // today forward — we don't resurrect the backlog of past-dated (missed)
+      // occurrences that were removed when the doer was deactivated.
+      const todayR = await client.query(`select ${TODAY_SQL} as today`);
+      const todayIso = todayR.rows[0].today;
+      const tasksR = await client.query(
+        "select task_id, task_name, doer_email, frequency, start_date, end_date " +
+        "from tasks where doer_email = $1 and status = 'Active'",
+        [doer.email]
+      );
+      let generated = 0;
+      let inserted = 0;
+      for (const task of tasksR.rows) {
+        const occ = generateOccurrences(task, { rangeFrom: todayIso });
+        generated += occ.length;
+        inserted += await upsertOccurrences(client, occ);
+      }
+      return { row: upd.rows[0], tasks: tasksR.rowCount, generated, inserted };
+    });
+
+    if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
+
+    invalidateDoers();
+    invalidateMaster();
+    res.json(result);
   } catch (e) { next(e); }
 });
 

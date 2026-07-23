@@ -35,11 +35,16 @@ async function runExtendJob() {
   const twelveMonthsOut = format(addMonths(today, 12), 'yyyy-MM-dd');
 
   const result = await withTx(async (client) => {
+    // Skip tasks whose doer is Inactive (left the company) — join doers and
+    // require an Active doer so deactivation stops future generation without
+    // mutating per-task status.
     const r = await client.query(`
-      select task_id, task_name, doer_email, frequency, start_date, end_date
-        from tasks
-       where status = 'Active'
-         and (end_date is null or end_date > $1)
+      select t.task_id, t.task_name, t.doer_email, t.frequency, t.start_date, t.end_date
+        from tasks t
+        join doers d on d.email = t.doer_email
+       where t.status = 'Active'
+         and d.status = 'Active'
+         and (t.end_date is null or t.end_date > $1)
     `, [sixMonthsFromNow]);
 
     let totalGenerated = 0;

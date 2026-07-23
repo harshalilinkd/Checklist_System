@@ -13,6 +13,15 @@ create table if not exists doers (
   created_at  timestamptz not null default now()
 );
 
+-- Doers can be deactivated when someone leaves the company. Deactivating
+-- PRESERVES their completed (Done) history but STOPS all future occurrence
+-- generation (see backend/routes/doers.js and jobs/extend-occurrences.js).
+-- Added via ALTER so it's a no-op on pre-existing installs.
+alter table doers
+  add column if not exists status text not null default 'Active'
+    check (status in ('Active','Inactive'));
+create index if not exists idx_doers_status on doers(status);
+
 -- ---------------------------------------------------------------------------
 -- 2. tasks
 -- ---------------------------------------------------------------------------

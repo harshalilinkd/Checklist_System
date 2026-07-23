@@ -13,7 +13,7 @@ const WINDOW_DAYS_AFTER = 30;
 async function loadDoers() {
   let doers = refCache.get('doers');
   if (!doers) {
-    const r = await query('select id, name, department, email from doers order by name');
+    const r = await query('select id, name, department, email, status from doers order by name');
     doers = r.rows;
     refCache.set('doers', doers);
   }

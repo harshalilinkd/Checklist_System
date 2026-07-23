@@ -61,7 +61,9 @@ router.post('/', requireAdmin, async (req, res, next) => {
         [task_id, task_name, doer_email, frequency, start_date, end_date, assigned_by, finalStatus]
       );
       const task = r.rows[0];
-      const occurrences = generateOccurrences(task);
+      // Don't schedule work for a deactivated doer (left the company).
+      const active = await client.query("select 1 from doers where email = $1 and status = 'Active'", [doer_email]);
+      const occurrences = active.rowCount ? generateOccurrences(task) : [];
       const inserted = await upsertOccurrences(client, occurrences);
       return { task, occurrencesGenerated: occurrences.length, inserted };
     });
@@ -110,7 +112,10 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
         [task_id]
       );
 
-      const occurrences = generateOccurrences(task);
+      // Regenerate only if the (possibly reassigned) doer is Active — a
+      // deactivated doer should never get fresh occurrences.
+      const active = await client.query("select 1 from doers where email = $1 and status = 'Active'", [task.doer_email]);
+      const occurrences = active.rowCount ? generateOccurrences(task) : [];
       const inserted = await upsertOccurrences(client, occurrences);
       return { task, occurrencesGenerated: occurrences.length, removed: removed.rowCount, inserted };
     });

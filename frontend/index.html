@@ -625,6 +625,7 @@
                 <th class="text-left px-5 py-3 border-b border-slate-200">Name</th>
                 <th class="text-left px-5 py-3 border-b border-slate-200">Department</th>
                 <th class="text-left px-5 py-3 border-b border-slate-200">Email</th>
+                <th class="text-left px-5 py-3 border-b border-slate-200">Status</th>
                 <th class="text-right px-5 py-3 border-b border-slate-200">Action</th>
               </tr>
             </thead>
@@ -2325,6 +2326,9 @@ $('#task-add-btn').addEventListener('click', () => openTaskModal());
 
 function openTaskModal(task) {
   const isEdit = !!task;
+  // Only Active doers can receive new assignments. When editing, keep the
+  // currently-assigned doer selectable even if they were since deactivated.
+  const assignableDoers = state.doers.filter(d => d.status !== 'Inactive' || (isEdit && d.email === task.doer_email));
   modal(`${isEdit ? 'Edit' : 'New'} task`, `
     <form id="task-form" class="grid grid-cols-2 gap-3">
       <label class="col-span-2"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Task name</span>
@@ -2335,14 +2339,14 @@ function openTaskModal(task) {
         <input type="checkbox" id="task-all-doers" class="h-4 w-4 rounded text-brand focus:ring-brand/30 border-brand-300" />
         <div class="flex-1">
           <div class="text-sm font-semibold text-slate-900">Assign to all doers</div>
-          <div class="text-[11px] text-slate-500">Creates ${state.doers.length} tasks — one per doer</div>
+          <div class="text-[11px] text-slate-500">Creates ${assignableDoers.length} tasks — one per active doer</div>
         </div>
         <span class="material-symbols-outlined text-brand text-[20px]">groups</span>
       </label>` : ''}
       <label id="task-doer-field"><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Doer</span>
         <select name="doer_email" required class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/20">
           ${isEdit ? '' : '<option value="" disabled selected>Select a doer…</option>'}
-          ${state.doers.map(d => `<option value="${escapeHtml(d.email)}" ${task?.doer_email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.email)})</option>`).join('')}
+          ${assignableDoers.map(d => `<option value="${escapeHtml(d.email)}" ${task?.doer_email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} (${escapeHtml(d.email)})</option>`).join('')}
         </select>
       </label>
       <label><span class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Frequency</span>
@@ -2377,9 +2381,9 @@ function openTaskModal(task) {
         await api('/api/tasks/' + task.task_id, { method: 'PUT', body: JSON.stringify(body) });
         toast('Task updated', 'success');
       } else if (assignAll) {
-        toast(`Creating ${state.doers.length} tasks…`, 'info');
+        toast(`Creating ${assignableDoers.length} tasks…`, 'info');
         const results = await Promise.allSettled(
-          state.doers.map(d => api('/api/tasks', {
+          assignableDoers.map(d => api('/api/tasks', {
             method: 'POST',
             body: JSON.stringify({ ...body, doer_email: d.email }),
           }))
@@ -3518,26 +3522,53 @@ function renderDoers() {
   $('#doers-count').textContent = `${fmtNum(doers.length)} of ${fmtNum(state.doers.length)} doers`;
 
   $('#doers-tbody').innerHTML = doers.length === 0 ? `
-    <tr><td colspan="4" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">filter_alt_off</span>${state.doers.length === 0 ? 'No doers yet.' : 'No matching doers.'}</td></tr>
-  ` : doers.map(d => `
-    <tr class="hover:bg-slate-50 transition">
-      <td class="px-5 py-3 text-sm font-medium text-slate-900">
+    <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500"><span class="material-symbols-outlined text-slate-300 text-4xl block mb-2">filter_alt_off</span>${state.doers.length === 0 ? 'No doers yet.' : 'No matching doers.'}</td></tr>
+  ` : doers.map(d => {
+    const inactive = d.status === 'Inactive';
+    return `
+    <tr class="hover:bg-slate-50 transition ${inactive ? 'bg-slate-50/60' : ''}">
+      <td class="px-5 py-3 text-sm font-medium ${inactive ? 'text-slate-400' : 'text-slate-900'}">
         <div class="flex items-center gap-2.5">
-          <div class="h-7 w-7 rounded-full bg-gradient-to-br from-brand-300 to-brand text-white text-[10px] font-semibold grid place-items-center">${initials(d.name)}</div>
+          <div class="h-7 w-7 rounded-full bg-gradient-to-br ${inactive ? 'from-slate-300 to-slate-400' : 'from-brand-300 to-brand'} text-white text-[10px] font-semibold grid place-items-center">${initials(d.name)}</div>
           <span>${escapeHtml(d.name)}</span>
         </div>
       </td>
-      <td class="px-5 py-3 text-sm text-slate-600">${escapeHtml(d.department || '—')}</td>
-      <td class="px-5 py-3 text-sm text-slate-500">${escapeHtml(d.email)}</td>
+      <td class="px-5 py-3 text-sm ${inactive ? 'text-slate-400' : 'text-slate-600'}">${escapeHtml(d.department || '—')}</td>
+      <td class="px-5 py-3 text-sm ${inactive ? 'text-slate-400' : 'text-slate-500'}">${escapeHtml(d.email)}</td>
+      <td class="px-5 py-3">
+        ${inactive
+          ? `<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>Inactive</span>`
+          : `<span class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active</span>`}
+      </td>
       <td class="px-5 py-3 text-right whitespace-nowrap">
+        ${inactive
+          ? `<button data-activate="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">play_circle</span>Reactivate</button>`
+          : `<button data-deactivate="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">pause_circle</span>Deactivate</button>`}
         <button data-edit="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">edit</span>Edit</button>
         <button data-del="${d.id}" class="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"><span class="material-symbols-outlined text-[14px]">delete</span></button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 
   $$('#doers-tbody [data-edit]').forEach(b => b.addEventListener('click', () => openDoerModal(state.doers.find(x => String(x.id) === b.dataset.edit))));
   $$('#doers-tbody [data-del]').forEach(b => b.addEventListener('click', () => deleteDoer(b.dataset.del)));
+  $$('#doers-tbody [data-deactivate]').forEach(b => b.addEventListener('click', () => setDoerStatus(b.dataset.deactivate, 'Inactive')));
+  $$('#doers-tbody [data-activate]').forEach(b => b.addEventListener('click', () => setDoerStatus(b.dataset.activate, 'Active')));
+}
+
+async function setDoerStatus(id, status) {
+  const d = state.doers.find(x => String(x.id) === String(id));
+  const name = d?.name || 'this doer';
+  const msg = status === 'Inactive'
+    ? `Deactivate ${name}?\n\nCompleted (Done) tasks stay in the records, but all upcoming and pending occurrences will be removed and no new ones will be scheduled.`
+    : `Reactivate ${name}?\n\nOccurrences for their active tasks will be regenerated going forward.`;
+  if (!confirm(msg)) return;
+  try {
+    await api('/api/doers/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
+    toast(status === 'Inactive' ? `${name} deactivated — future tasks stopped` : `${name} reactivated`, 'success');
+    await refreshBootstrap();
+    switchView('doers');
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 function activeDoersFilterCount() { return state.filters.dSearch ? 1 : 0; }
