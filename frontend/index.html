@@ -99,6 +99,15 @@
     transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  /* Compact Master Checklist filter bar — scoped so the 7 filters pack tight
+     without touching the shared input classes used elsewhere. Targets the
+     .bg-slate-50 field shells only (dropdown panels are bg-white, untouched). */
+  #master-filters label { font-size: 9px; letter-spacing: 0.04em; color: #94a3b8; }
+  #master-filters .bg-slate-50 { margin-top: 3px; padding: 5px 9px; border-radius: 8px; gap: 6px; }
+  #master-filters .bg-slate-50 input,
+  #master-filters .bg-slate-50 select { font-size: 13px; }
+  #master-filters .bg-slate-50 .material-symbols-outlined { font-size: 15px; }
+
   /* Sticky table head with backdrop blur */
   .sticky-head th { position: sticky; top: 0; z-index: 5; background: rgba(248,250,252,0.92); backdrop-filter: blur(6px); }
 
@@ -418,10 +427,10 @@
 
           <!-- Legend -->
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-[11px] text-slate-500">
-            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#43ad93"></span>Done</span>
-            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#6d8ad8"></span>Today</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#2ba79c"></span>Done</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#6c7fd6"></span>Today</span>
             <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#e4a63f"></span>Upcoming</span>
-            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#d97070"></span>Delayed</span>
+            <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm" style="background:#d76a95"></span>Delayed</span>
           </div>
 
           <div id="dept-perf" class="space-y-1 max-h-80 overflow-y-auto pr-1">
@@ -498,8 +507,8 @@
       </div>
 
       <!-- Filter bar — relative z-20 so combobox dropdowns render ABOVE the KPI cards below it -->
-      <div class="bg-white/90 backdrop-blur-sm border border-slate-100 rounded-2xl p-3 shadow-card relative z-20">
-        <div id="master-filters" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+      <div class="bg-white border border-slate-200/70 rounded-xl p-2.5 shadow-card relative z-20">
+        <div id="master-filters" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-x-2 gap-y-1.5">
           <!-- filters injected -->
         </div>
       </div>
@@ -1389,7 +1398,7 @@ function renderDeptPerformance(rows) {
     return;
   }
 
-  const colors = { Done: '#43ad93', Today: '#6d8ad8', 'Upcoming Focus': '#e4a63f', Delayed: '#d97070' };
+  const colors = { Done: '#2ba79c', Today: '#6c7fd6', 'Upcoming Focus': '#e4a63f', Delayed: '#d76a95' };
 
   $('#dept-perf').innerHTML = sorted.map(([name, d], idx) => {
     const completable = (d.Done || 0) + (d.Delayed || 0) + (d.Today || 0);
@@ -1427,10 +1436,10 @@ function renderDeptPerformance(rows) {
 
 function renderDonut(k) {
   const slices = [
-    { label: 'Done',           value: k.doneCount,       color: '#43ad93' },
-    { label: 'Today',          value: k.todayCount,      color: '#6d8ad8' },
+    { label: 'Done',           value: k.doneCount,       color: '#2ba79c' },
+    { label: 'Today',          value: k.todayCount,      color: '#6c7fd6' },
     { label: 'Upcoming Focus', value: k.upcomingCount,   color: '#e4a63f' },
-    { label: 'Delayed',        value: k.delayed,         color: '#d97070' },
+    { label: 'Delayed',        value: k.delayed,         color: '#d76a95' },
   ];
   const total = slices.reduce((a,s) => a + s.value, 0);
   let cursor = 0;
@@ -2792,8 +2801,8 @@ function renderScorecardBody() {
                 <span class="text-xs text-slate-500 num">${fmtNum(f.onTime)} on-time · ${fmtNum(f.late)} late · ${fmtNum(f.total - f.done)} open · <span class="text-slate-700 font-semibold">${fmtNum(f.total)} total</span></span>
               </div>
               <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                <div style="width:${otW}%; background:#43ad93"></div>
-                <div style="width:${lW}%; background:#d97070"></div>
+                <div style="width:${otW}%; background:#2ba79c"></div>
+                <div style="width:${lW}%; background:#d76a95"></div>
                 <div style="width:${opW}%; background:#cbd5e1"></div>
               </div>
             </div>`;
@@ -2906,11 +2915,11 @@ function renderScorecardBody() {
 
 function renderReliabilityScore(k) {
   const score = k.reliability ?? 0;
-  const grade = score >= 90 ? { label: 'Excellent', icon: 'verified',          color: 'text-emerald-700', ring: 'ring-emerald-300', glow: 'from-emerald-100 to-emerald-50', bar: '#43ad93' }
+  const grade = score >= 90 ? { label: 'Excellent', icon: 'verified',          color: 'text-emerald-700', ring: 'ring-emerald-300', glow: 'from-emerald-100 to-emerald-50', bar: '#2ba79c' }
               : score >= 75 ? { label: 'Strong',    icon: 'thumb_up',          color: 'text-emerald-700', ring: 'ring-emerald-200', glow: 'from-emerald-50 to-white',     bar: '#34d399' }
               : score >= 60 ? { label: 'Steady',    icon: 'trending_flat',     color: 'text-amber-700',   ring: 'ring-amber-200',   glow: 'from-amber-50 to-white',       bar: '#e4a63f' }
               : score >= 40 ? { label: 'Watch',     icon: 'warning',           color: 'text-amber-700',   ring: 'ring-amber-200',   glow: 'from-amber-50 to-white',       bar: '#fb923c' }
-              :               { label: 'At risk',   icon: 'priority_high',     color: 'text-red-700',     ring: 'ring-red-200',     glow: 'from-red-50 to-white',         bar: '#d97070' };
+              :               { label: 'At risk',   icon: 'priority_high',     color: 'text-red-700',     ring: 'ring-red-200',     glow: 'from-red-50 to-white',         bar: '#d76a95' };
   const gradeTooltip = `Grade scale:\nExcellent (90-100) — top performer\nStrong (75-89) — consistently good\nSteady (60-74) — solid, room to grow\nWatch (40-59) — warning zone, needs attention\nAt risk (0-39) — critical underperformance`;
 
   // Component contributions (weights match backend formula)
@@ -3002,8 +3011,8 @@ function renderPeriodDonut(kpis) {
   const late    = Math.max(0, (kpis.done || 0) - onTime);
   const pending = Math.max(0, (kpis.total || 0) - (kpis.done || 0));
   const slices = [
-    { label: 'On-time', value: onTime,  color: '#43ad93' },
-    { label: 'Late',    value: late,    color: '#d97070' },
+    { label: 'On-time', value: onTime,  color: '#2ba79c' },
+    { label: 'Late',    value: late,    color: '#d76a95' },
     { label: 'Pending', value: pending, color: '#cbd5e1' },
   ];
   const total = kpis.total || 0;
@@ -3068,7 +3077,7 @@ function renderDayOfWeek(daily) {
       ${buckets.map(b => {
         const otPct = b.done ? Math.round((b.onTime / b.done) * 100) : 0;
         const w = (b.total / maxTotal) * 100;
-        const color = b.total === 0 ? '#cbd5e1' : otPct >= 80 ? '#43ad93' : otPct >= 50 ? '#e4a63f' : otPct > 0 ? '#d97070' : '#94a3b8';
+        const color = b.total === 0 ? '#cbd5e1' : otPct >= 80 ? '#2ba79c' : otPct >= 50 ? '#e4a63f' : otPct > 0 ? '#d76a95' : '#94a3b8';
         const pctTxt = b.total === 0 ? '—' : b.done === 0 ? '0%' : otPct + '%';
         const pctClr = b.total === 0 ? 'text-slate-400' : otPct >= 80 ? 'text-emerald-700' : otPct >= 50 ? 'text-amber-700' : otPct > 0 ? 'text-red-700' : 'text-slate-500';
         return `
