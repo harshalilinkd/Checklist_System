@@ -3613,6 +3613,18 @@ function openDoerModal(doer) {
       return true;
     } catch (err) { toast(err.message, 'error'); return false; }
   });
+
+  // Role isn't in the bootstrap doers list (it lives in Supabase Auth /
+  // ADMIN_EMAILS), so fetch it and preselect the dropdown instead of
+  // defaulting to "User".
+  if (isEdit) {
+    api('/api/doers/' + doer.id + '/role')
+      .then(({ role }) => {
+        const sel = document.querySelector('#doer-form select[name="role"]');
+        if (sel) sel.value = (role || 'user').toLowerCase();
+      })
+      .catch(() => {});
+  }
 }
 
 async function deleteDoer(id) {

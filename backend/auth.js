@@ -46,4 +46,8 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { verifyToken, requireAuth, requireAdmin };
+function isAdminEmail(email) {
+  return adminEmails.includes((email || '').toLowerCase());
+}
+
+module.exports = { verifyToken, requireAuth, requireAdmin, isAdminEmail };

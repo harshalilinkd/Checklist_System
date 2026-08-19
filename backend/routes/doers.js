@@ -1,8 +1,8 @@
 const express = require('express');
 const { query, withTx, TODAY_SQL } = require('../db');
 const { invalidateDoers, invalidateMaster, invalidateTasks } = require('../cache');
-const { requireAdmin } = require('../auth');
-const { upsertAuthUser, changeAuthEmail, deleteAuthUser } = require('../lib/supabase-admin');
+const { requireAdmin, isAdminEmail } = require('../auth');
+const { upsertAuthUser, changeAuthEmail, deleteAuthUser, findUserByEmail } = require('../lib/supabase-admin');
 const { generateOccurrences } = require('../lib/occurrences');
 
 const router = express.Router();
@@ -142,6 +142,27 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
     invalidateTasks();
     invalidateMaster();
     res.json({ ...result.row, auth });
+  } catch (e) { next(e); }
+});
+
+// Role isn't stored in the doers table — it lives in Supabase Auth
+// (user_metadata.role) or the ADMIN_EMAILS env override. The edit modal calls
+// this to preselect the correct Role in the dropdown instead of defaulting to
+// "User". ADMIN_EMAILS wins (matches how auth.js computes isAdmin).
+router.get('/:id/role', requireAdmin, async (req, res, next) => {
+  try {
+    const r = await query('select email from doers where id = $1', [req.params.id]);
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Doer not found', code: 404 });
+    const email = r.rows[0].email;
+    if (isAdminEmail(email)) return res.json({ role: 'admin', source: 'env' });
+    let role = 'user';
+    try {
+      const u = await findUserByEmail(email);
+      if ((u?.user_metadata?.role || '').toLowerCase() === 'admin') role = 'admin';
+    } catch (e) {
+      console.error('role lookup failed for', email, '-', e.message);
+    }
+    res.json({ role });
   } catch (e) { next(e); }
 });
 
