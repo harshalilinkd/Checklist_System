@@ -2,6 +2,8 @@ const express = require('express');
 const { query, TODAY_SQL } = require('../db');
 const { COMPUTED_STATUS_SQL } = require('../lib/status');
 const { masterCache, masterKey, refCache } = require('../cache');
+const { isAdminEmail } = require('../auth');
+const { listAllUsers } = require('../lib/supabase-admin');
 
 const router = express.Router();
 
@@ -15,6 +17,23 @@ async function loadDoers() {
   if (!doers) {
     const r = await query('select id, name, department, email, status from doers order by name');
     doers = r.rows;
+    // Attach role (admin/user) so the frontend can hide admins (e.g. MDs) from
+    // pickers. Source of truth: ADMIN_EMAILS override OR Supabase Auth
+    // user_metadata.role. Best-effort — if the auth listing fails, everyone
+    // falls back to their ADMIN_EMAILS status only.
+    let roleByEmail = new Map();
+    try {
+      for (const u of await listAllUsers()) {
+        const email = (u.email || '').toLowerCase();
+        if (email) roleByEmail.set(email, (u.user_metadata?.role || '').toLowerCase());
+      }
+    } catch (e) {
+      console.error('role enrich failed (doers listed without auth roles):', e.message);
+    }
+    doers = doers.map(d => {
+      const isAdmin = isAdminEmail(d.email) || roleByEmail.get((d.email || '').toLowerCase()) === 'admin';
+      return { ...d, role: isAdmin ? 'admin' : 'user' };
+    });
     refCache.set('doers', doers);
   }
   return doers;

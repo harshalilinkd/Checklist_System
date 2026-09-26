@@ -31,6 +31,22 @@ async function findUserByEmail(email) {
   }
 }
 
+// Return every auth user (paginated). Used to attach role to the doers list.
+async function listAllUsers() {
+  const c = client();
+  if (!c) return [];
+  const all = [];
+  let page = 1;
+  while (true) {
+    const { data, error } = await c.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw new Error(error.message);
+    all.push(...data.users);
+    if (data.users.length < 1000) break;
+    page++;
+  }
+  return all;
+}
+
 async function upsertAuthUser({ email, password, name, role }) {
   const c = client();
   if (!c) return { skipped: true, reason: 'SUPABASE_SERVICE_KEY not configured' };
@@ -77,4 +93,4 @@ async function deleteAuthUser(email) {
   return { deleted: true, id: existing.id };
 }
 
-module.exports = { upsertAuthUser, changeAuthEmail, deleteAuthUser, findUserByEmail };
+module.exports = { upsertAuthUser, changeAuthEmail, deleteAuthUser, findUserByEmail, listAllUsers };
