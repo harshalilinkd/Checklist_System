@@ -2506,7 +2506,7 @@ function renderScorecardControls() {
         <span class="material-symbols-outlined text-slate-400 text-[16px]">person</span>
         <select id="sc-doer" class="bg-transparent outline-none text-sm w-full">
           <option value="" ${!s.email ? 'selected' : ''}>Select a doer…</option>
-          ${state.doers.filter(d => d.role !== 'admin' && d.status !== 'Inactive').map(d => `<option value="${escapeHtml(d.email)}" ${s.email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} · ${escapeHtml(d.department || '—')}</option>`).join('')}
+          ${state.doers.filter(d => (d.department || '').trim().toUpperCase() !== 'MD' && d.status !== 'Inactive').map(d => `<option value="${escapeHtml(d.email)}" ${s.email === d.email ? 'selected' : ''}>${escapeHtml(d.name)} · ${escapeHtml(d.department || '—')}</option>`).join('')}
         </select>
       </div>
     </div>
